@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Validasi & Jadwal Training Toko",
+  "description": "Aplikasi pengelolaan dan validasi jadwal training karyawan toko dengan deteksi otomatis bentrok personil (NIK) dan double toko.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
