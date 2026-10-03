@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -9,3 +11,48 @@
     font-family: 'JetBrains Mono', monospace;
   }
 }
+
+/* Custom Indomaret Tri-color accent bars */
+.indomaret-stripe {
+  background: linear-gradient(90deg, #005BAC 0%, #005BAC 33.3%, #E31B23 33.3%, #E31B23 66.6%, #FFC72C 66.6%, #FFC72C 100%);
+}
+
+.indomaret-stripe-vertical {
+  background: linear-gradient(180deg, #005BAC 0%, #005BAC 33.3%, #E31B23 33.3%, #E31B23 66.6%, #FFC72C 66.6%, #FFC72C 100%);
+}
+
+.indomaret-gradient-subtle {
+  background: linear-gradient(135deg, rgba(0, 91, 172, 0.05) 0%, rgba(227, 27, 35, 0.05) 50%, rgba(255, 199, 44, 0.08) 100%);
+}
+
+.dark .indomaret-gradient-subtle {
+  background: linear-gradient(135deg, rgba(0, 91, 172, 0.15) 0%, rgba(227, 27, 35, 0.12) 50%, rgba(255, 199, 44, 0.1) 100%);
+}
+
+/* Tri-color border glow */
+.indomaret-border-tricolor {
+  border-image: linear-gradient(90deg, #005BAC, #E31B23, #FFC72C) 1;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+

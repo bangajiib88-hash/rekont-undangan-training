@@ -52,7 +52,7 @@ WHERE sheet_code = '${s.code}';`;
   }).join('\n\n');
 
   return `-- ===================================================================================
--- SKRIP SETUP SUPABASE LENGKAP: 19 SHEET PELATIHAN & MASTER SINKRONISASI KROSCEK
+-- SKRIP SETUP SUPABASE LENGKAP: 19 SHEET TRAINING & MASTER SINKRONISASI KROSCEK
 -- Proyek Supabase: https://mmrjblorrtfjmiqhodcl.supabase.co
 -- ===================================================================================
 

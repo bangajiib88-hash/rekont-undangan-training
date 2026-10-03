@@ -21,7 +21,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   records,
   onDataLoadedFromCloud,
 }) => {
-  const [activeTab, setActiveTab] = useState<'sql' | 'sync'>('sql');
+  const [activeTab, setActiveTab] = useState<'sql' | 'sync'>('sync');
   const [copied, setCopied] = useState(false);
   const [checking, setChecking] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -86,13 +86,13 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
     if (result.success) {
       setModalAlert({
         type: 'success',
-        message: `Sukses mengunggah ${result.count} data ke Supabase!`,
+        message: `Sukses mengunggah ${result.count} data ke Supabase Cloud!`,
       });
       verifyConnection();
     } else {
       setModalAlert({
         type: 'error',
-        message: `Gagal sinkronisasi: ${result.error}. Pastikan Anda sudah menjalankan kode SQL di Supabase SQL Editor terlebih dahulu.`,
+        message: `Gagal sinkronisasi: ${result.error}.`,
       });
     }
   };
@@ -105,7 +105,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
       onDataLoadedFromCloud(cloudRecords);
       setModalAlert({
         type: 'success',
-        message: `Berhasil menarik ${cloudRecords.length} data dari Supabase!`,
+        message: `Berhasil menarik ${cloudRecords.length} data dari Supabase Cloud!`,
       });
       verifyConnection();
     } catch (err: any) {
@@ -119,10 +119,12 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh] transition-colors">
+        {/* Indomaret Authentic Tri-Color Accent */}
+        <div className="h-1.5 w-full indomaret-stripe shrink-0" />
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-900 text-white">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
               <Database className="w-5 h-5" />
@@ -130,10 +132,10 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white">
-                  Koneksi Database Supabase
+                  Koneksi Database Supabase Cloud
                 </h3>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
-                  Permanen
+                  Online
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono mt-0.5 truncate max-w-md">
@@ -150,27 +152,27 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
         </div>
 
         {/* Live Status Bar */}
-        <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-slate-500 font-medium">Status Cloud:</span>
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Status Cloud:</span>
             {checking ? (
-              <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+              <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#005BAC]" />
                 Memeriksa koneksi...
               </span>
             ) : status?.tableExists ? (
-              <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Tersambung · Tabel Aktif ({status.rowCount} Baris Data)
+              <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Tersambung · Tabel Aktif ({status.rowCount} Baris Data di Cloud)
               </span>
             ) : status?.connected ? (
-              <span className="text-amber-700 font-semibold flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <span className="text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 Tersambung ke Server · Tabel Belum Dibuat
               </span>
             ) : (
-              <span className="text-rose-700 font-semibold flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <span className="text-[#E31B23] dark:text-red-400 font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-[#E31B23] dark:text-red-400" />
                 Gagal Tersambung
               </span>
             )}
@@ -180,113 +182,170 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
             <button
               onClick={verifyConnection}
               disabled={checking}
-              className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-100 flex items-center gap-1"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-2xs"
             >
               <RefreshCw className={`w-3 h-3 ${checking ? 'animate-spin' : ''}`} />
-              Cek Ulang
+              Kroscek Ulang
             </button>
-            <a
-              href="https://supabase.com/dashboard/project/mmrjblorrtfjmiqhodcl/sql"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-300 rounded hover:bg-emerald-100 flex items-center gap-1"
-            >
-              <span>Buka SQL Editor</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
           </div>
         </div>
 
-        {modalAlert && (
-          <div className={`mx-6 mt-3 p-3 rounded-xl text-xs flex items-center justify-between border ${
-            modalAlert.type === 'success'
-              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-              : 'bg-rose-50 text-rose-900 border-rose-200'
-          }`}>
-            <span>{modalAlert.message}</span>
-            <button
-              onClick={() => setModalAlert(null)}
-              className="text-slate-400 hover:text-slate-700 ml-2 font-bold"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 bg-white px-6 pt-2 gap-2 text-xs">
-          <button
-            onClick={() => setActiveTab('sql')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 flex items-center gap-1.5 transition-all ${
-              activeTab === 'sql'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Terminal className="w-3.5 h-3.5" />
-            <span>Kode Lengkap SQL Editor</span>
-          </button>
+        {/* Tab switch */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/40 px-6 pt-3 gap-2">
           <button
             onClick={() => setActiveTab('sync')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
               activeTab === 'sync'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'border-[#005BAC] text-[#005BAC] dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Cloud className="w-3.5 h-3.5" />
-            <span>Sinkronisasi Otomatis (Push / Pull)</span>
+            Sinkronisasi Cloud (Push / Pull)
+          </button>
+          <button
+            onClick={() => setActiveTab('sql')}
+            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'sql'
+                ? 'border-[#005BAC] text-[#005BAC] dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            Kode SQL Skema 19 Sheet
           </button>
         </div>
 
-        {/* Tab Content */}
-        <div className="p-6 flex-1 overflow-y-auto">
-          {activeTab === 'sql' ? (
+        {/* Body content */}
+        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+          {modalAlert && (
+            <div className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
+              modalAlert.type === 'success'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-red-300 border border-rose-200 dark:border-rose-800'
+            }`}>
+              {modalAlert.type === 'success' ? (
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              )}
+              <span>{modalAlert.message}</span>
+            </div>
+          )}
+
+          {activeTab === 'sync' ? (
+            /* Sync Tab */
+            <div className="space-y-5">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs text-slate-700 dark:text-slate-300">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Status Sinkronisasi Cloud</h4>
+                <p>
+                  URL Supabase telah dikonfigurasi secara otomatis di aplikasi:
+                  <br />
+                  <code className="bg-slate-200 dark:bg-slate-950 px-1.5 py-0.5 rounded font-mono text-[11px] text-slate-900 dark:text-slate-200">
+                    {SUPABASE_URL}
+                  </code>
+                </p>
+                <p className="text-slate-500 dark:text-slate-400">
+                  Data yang Anda unggah dari komputer ini dapat disinkronkan ke cloud agar otomatis tampil di komputer kantor atau laptop rekan kerja Anda.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Push */}
+                <div className="p-5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 space-y-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-[#005BAC] dark:text-blue-400 flex items-center justify-center">
+                    <CloudUpload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Kirim ke Supabase (Push)</h5>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Mengunggah seluruh {records.length} data lokal ke tabel <code>training_schedules</code> di Supabase.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handlePushToCloud}
+                    disabled={syncing}
+                    className="w-full py-2 px-3 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    {syncing && syncProgress ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        Mengunggah ({syncProgress.current}/{syncProgress.total})...
+                      </>
+                    ) : (
+                      <>
+                        <CloudUpload className="w-3.5 h-3.5" />
+                        Push Semua Data ke Cloud
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Pull */}
+                <div className="p-5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 space-y-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <CloudDownload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Tarik dari Supabase (Pull)</h5>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Mengunduh data terbaru dari tabel Supabase dan menyegarkan tampilan web aplikasi di perangkat ini.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handlePullFromCloud}
+                    disabled={syncing}
+                    className="w-full py-2 px-3 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    {syncing ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        Mengambil Data...
+                      </>
+                    ) : (
+                      <>
+                        <CloudDownload className="w-3.5 h-3.5" />
+                        Pull Data Terbaru
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* SQL Editor Tab */
             <div className="space-y-4">
-              {/* Instructions */}
-              <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed">
-                <p className="font-bold">Langkah Cepat Memindahkan Semua Data ke Supabase:</p>
-                <ol className="list-decimal pl-4 mt-1.5 space-y-1 text-blue-800">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs text-slate-700 dark:text-slate-300">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Langkah Eksekusi di Supabase SQL Editor</h4>
+                <ol className="list-decimal pl-4 space-y-1 mt-1">
                   <li>
                     Klik tombol <strong>"Salin Semua Kode SQL"</strong> di bawah ini (atau unduh file <code>.sql</code>).
                   </li>
                   <li>
-                    Buka menu <strong>SQL Editor</strong> di dashboard Supabase Anda (
-                    <a
-                      href="https://supabase.com/dashboard/project/mmrjblorrtfjmiqhodcl/sql"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline font-bold text-blue-700"
-                    >
-                      Buka Supabase SQL Editor
-                    </a>
-                    ).
+                    Buka menu <strong>SQL Editor</strong> di dashboard Supabase Anda.
                   </li>
                   <li>
-                    Tempelkan (Paste) kodenya lalu klik tombol <strong>"Run"</strong> (atau tekan Ctrl+Enter).
-                  </li>
-                  <li>
-                    Selesai! Tabel <code>training_schedules</code> beserta seluruh {records.length} baris data dan hak akses RLS langsung siap.
+                    Tempelkan (Paste) kodenya lalu klik tombol <strong>"Run"</strong>.
                   </li>
                 </ol>
               </div>
 
               {/* Action Buttons */}
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-mono">
-                  PostgreSQL DDL + RLS + {records.length} Baris Data INSERT
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                  PostgreSQL DDL + RLS
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleDownloadSql}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Unduh File .sql
                   </button>
                   <button
                     onClick={handleCopySql}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] rounded-lg transition-colors shadow-xs"
                   >
                     {copied ? (
                       <>
@@ -312,85 +371,6 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                 <pre className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto max-h-[340px] leading-relaxed selection:bg-emerald-900">
                   {fullSql}
                 </pre>
-              </div>
-            </div>
-          ) : (
-            /* Sync Push/Pull Tab */
-            <div className="space-y-5">
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs text-slate-700">
-                <h4 className="font-bold text-slate-900 text-sm">Status Sinkronisasi Cloud</h4>
-                <p>
-                  URL Supabase telah dikonfigurasi secara permanen di aplikasi:
-                  <br />
-                  <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-[11px] text-slate-900">
-                    {SUPABASE_URL}
-                  </code>
-                </p>
-                <p className="text-slate-500">
-                  Setelah menjalankan skrip SQL di Supabase SQL Editor sekali saja, Anda dapat mengirim data baru atau menarik data kapan saja menggunakan tombol di bawah ini.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Push */}
-                <div className="p-5 border border-slate-200 rounded-xl bg-white space-y-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <CloudUpload className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h5 className="font-bold text-slate-900 text-sm">Kirim ke Supabase (Push)</h5>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Mengunggah seluruh {records.length} data lokal ke tabel <code>training_schedules</code> di Supabase.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handlePushToCloud}
-                    disabled={syncing}
-                    className="w-full py-2 px-3 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    {syncing && syncProgress ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        Mengunggah ({syncProgress.current}/{syncProgress.total})...
-                      </>
-                    ) : (
-                      <>
-                        <CloudUpload className="w-3.5 h-3.5" />
-                        Push Semua Data ke Cloud
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Pull */}
-                <div className="p-5 border border-slate-200 rounded-xl bg-white space-y-3">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <CloudDownload className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h5 className="font-bold text-slate-900 text-sm">Tarik dari Supabase (Pull)</h5>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Mengunduh data terbaru dari tabel Supabase dan menyegarkan tampilan web aplikasi.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handlePullFromCloud}
-                    disabled={syncing}
-                    className="w-full py-2 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    {syncing ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        Mengambil Data...
-                      </>
-                    ) : (
-                      <>
-                        <CloudDownload className="w-3.5 h-3.5" />
-                        Pull Data Terbaru
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
             </div>
           )}

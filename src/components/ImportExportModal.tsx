@@ -36,7 +36,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
         onImportRecords(parsed);
         setStatusMessage({
           type: 'success',
-          text: `Berhasil mengimpor ${parsed.length} baris data dari file "${file.name}"!`,
+          text: `Berhasil mengimpor ${parsed.length} baris data dari file "${file.name}"! Data lama tetap aman.`,
         });
       } else {
         setStatusMessage({
@@ -60,7 +60,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
         onImportRecords(parsed);
         setStatusMessage({
           type: 'success',
-          text: `Berhasil mengimpor ${parsed.length} data dari teks!`,
+          text: `Berhasil mengimpor ${parsed.length} data dari teks! Data lama tetap aman.`,
         });
         setPasteText('');
       } else {
@@ -78,42 +78,44 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-colors">
+        {/* Indomaret Authentic Tri-Color Accent */}
+        <div className="h-1.5 w-full indomaret-stripe shrink-0" />
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
           <div className="flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-blue-600" />
-            <h3 className="text-base font-bold text-slate-900">
+            <FileSpreadsheet className="w-5 h-5 text-[#005BAC] dark:text-blue-400" />
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-50">
               Sinkronisasi Spreadsheet (Excel &amp; CSV)
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab switch */}
-        <div className="flex border-b border-slate-200 bg-slate-100/50 px-6 pt-3 gap-2">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/40 px-6 pt-3 gap-2">
           <button
             onClick={() => { setActiveTab('import'); setStatusMessage(null); }}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all ${
+            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
               activeTab === 'import'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-[#005BAC] text-[#005BAC] dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Import File / Salin Teks
           </button>
           <button
             onClick={() => { setActiveTab('export'); setStatusMessage(null); }}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all ${
+            className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all ${
               activeTab === 'export'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-[#005BAC] text-[#005BAC] dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Export (Unduh Data)
@@ -124,13 +126,13 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
         {statusMessage && (
           <div className={`mx-6 mt-4 p-3 rounded-lg text-xs flex items-center gap-2 ${
             statusMessage.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-red-300 border border-rose-200 dark:border-rose-800'
           }`}>
             {statusMessage.type === 'success' ? (
-              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-[#E31B23] dark:text-red-400 shrink-0" />
             )}
             <span>{statusMessage.text}</span>
           </div>
@@ -141,31 +143,31 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           {activeTab === 'import' ? (
             <div className="space-y-5">
               {/* Safe Append Banner */}
-              <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950">
-                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-emerald-50/90 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/80 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950 dark:text-emerald-200">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-emerald-900">Data Sebelumnya Tetap Tersimpan Aman</h4>
-                  <p className="text-emerald-700 mt-0.5 leading-relaxed text-[11px]">
+                  <h4 className="font-bold text-emerald-900 dark:text-emerald-200">Data Sebelumnya Tetap Tersimpan Aman</h4>
+                  <p className="text-emerald-700 dark:text-emerald-300 mt-0.5 leading-relaxed text-[11px]">
                     Saat mengunggah file baru, jadwal yang sudah ada <strong>tidak akan terhapus</strong>. 
-                    Setiap baris data baru akan digabungkan dan otomatis ditempatkan ke sheet yang sesuai dengan program pelatihannya.
+                    Setiap baris data baru akan digabungkan dan otomatis ditempatkan ke sheet yang sesuai dengan program trainingnya.
                   </p>
                 </div>
               </div>
 
               {/* File upload dropzone */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   1. Unggah File Spreadsheet (.xlsx, .xls, .csv)
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-blue-50/20"
+                  className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#005BAC] dark:hover:border-blue-400 rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/40 hover:bg-blue-50/20"
                 >
-                  <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">
+                  <Upload className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                     Klik untuk memilih file spreadsheet dari komputer Anda
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     Mendukung format file Excel (.xlsx, .xls) dan CSV dengan header standar
                   </p>
                   <input
@@ -180,7 +182,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
 
               {/* Paste CSV textarea */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   2. Atau Tempel (Paste) Teks CSV Langsung
                 </label>
                 <textarea
@@ -188,23 +190,23 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                   value={pasteText}
                   onChange={e => setPasteText(e.target.value)}
                   placeholder="Tempel baris teks CSV di sini (misal: 12 Oktober 2026,2015779889,NAMA,KODE TOKO...)"
-                  className="w-full p-2.5 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                  className="w-full p-2.5 text-xs font-mono border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden"
                 />
                 <button
                   type="button"
                   onClick={handlePasteImport}
                   disabled={!pasteText.trim()}
-                  className="mt-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="mt-2 px-3 py-1.5 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] rounded-lg disabled:opacity-50 transition-colors shadow-xs"
                 >
                   Proses &amp; Import Teks CSV
                 </button>
               </div>
 
               {/* Reset to default seed */}
-              <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-800">Kembalikan Data Awal</h4>
-                  <p className="text-[11px] text-slate-500">Muat ulang dataset spreadsheet awal (~280 baris data)</p>
+                  <h4 className="text-xs font-semibold text-slate-800 dark:text-slate-200">Kembalikan Data Awal</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Muat ulang dataset spreadsheet awal</p>
                 </div>
                 <button
                   type="button"
@@ -215,7 +217,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                       text: 'Data telah berhasil direset ke dataset awal!',
                     });
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   Reset ke Awal
@@ -225,7 +227,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           ) : (
             /* Export Tab */
             <div className="space-y-4">
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 Ekspor seluruh data jadwal training ({records.length} baris) beserta hasil kalkulasi otomatis (Status, Berdasarkan NIK, Berdasarkan Kode Toko, dan Formula Penggabungan):
               </p>
 
@@ -239,13 +241,13 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                       text: 'File Excel (.xlsx) berhasil diunduh!',
                     });
                   }}
-                  className="p-4 border border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100/60 rounded-xl text-center transition-all group cursor-pointer"
+                  className="p-4 border border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/50 rounded-xl text-center transition-all group cursor-pointer"
                 >
-                  <FileSpreadsheet className="w-8 h-8 text-emerald-600 mx-auto mb-2 group-hover:scale-105 transition-transform" />
-                  <span className="block text-xs font-bold text-emerald-900">
+                  <FileSpreadsheet className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-2 group-hover:scale-105 transition-transform" />
+                  <span className="block text-xs font-bold text-emerald-900 dark:text-emerald-200">
                     Unduh Format Excel (.xlsx)
                   </span>
-                  <span className="block text-[11px] text-emerald-700 mt-1">
+                  <span className="block text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">
                     Kompatibel dengan Microsoft Excel &amp; Google Sheets
                   </span>
                 </button>
@@ -259,13 +261,13 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                       text: 'File CSV berhasil diunduh!',
                     });
                   }}
-                  className="p-4 border border-blue-300 bg-blue-50/50 hover:bg-blue-100/60 rounded-xl text-center transition-all group cursor-pointer"
+                  className="p-4 border border-blue-300 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/40 hover:bg-blue-100/60 dark:hover:bg-blue-900/50 rounded-xl text-center transition-all group cursor-pointer"
                 >
-                  <Download className="w-8 h-8 text-blue-600 mx-auto mb-2 group-hover:scale-105 transition-transform" />
-                  <span className="block text-xs font-bold text-blue-900">
+                  <Download className="w-8 h-8 text-[#005BAC] dark:text-blue-400 mx-auto mb-2 group-hover:scale-105 transition-transform" />
+                  <span className="block text-xs font-bold text-blue-900 dark:text-blue-200">
                     Unduh Format CSV (.csv)
                   </span>
-                  <span className="block text-[11px] text-blue-700 mt-1">
+                  <span className="block text-[11px] text-blue-700 dark:text-blue-400 mt-1">
                     Struktur kolom identik dengan file spreadsheet sumber
                   </span>
                 </button>

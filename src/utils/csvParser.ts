@@ -62,9 +62,9 @@ export function parseTableRows(rows: any[][]): TrainingRecord[] {
   
   const dateIdx = findHeaderIndex(rawHeader, ['TANGGAL', 'TANGGAL AWAL', 'TGL AWAL', 'TGL'], ['TANGGAL']);
   const trainingIdx = findHeaderIndex(rawHeader, ['JENIS TRAINING', 'TRAINING', 'PROGRAM TRAINING', 'NAMA TRAINING'], ['TRAINING']);
-  const batchIdx = findHeaderIndex(rawHeader, ['BATCH', 'GELOMBANG', 'BATCH PELATIHAN'], ['BATCH']);
+  const batchIdx = findHeaderIndex(rawHeader, ['BATCH', 'GELOMBANG', 'BATCH TRAINING', 'BATCH PELATIHAN'], ['BATCH']);
   const cabangIdx = findHeaderIndex(rawHeader, ['CABANG', 'BRANCH', 'KODE CABANG'], ['CABANG']);
-  const ketIdx = findHeaderIndex(rawHeader, ['KETERANGAN', 'METODE', 'METODE PELATIHAN', 'KET'], ['KETERANGAN']);
+  const ketIdx = findHeaderIndex(rawHeader, ['KETERANGAN', 'METODE', 'METODE TRAINING', 'METODE PELATIHAN', 'KET'], ['KETERANGAN']);
 
   // Multi-day sessions
   const h1Idx = findHeaderIndex(rawHeader, ['TANGGAL H1', 'H1', 'TGL H1']);

@@ -366,6 +366,7 @@ export function calculateMetrics(records: TrainingRecord[]): DashboardMetrics {
   const trainings: { [training: string]: number } = {};
   const sheetDistribution: { [sheetCode: string]: number } = {};
   const doubleStoreCodes = new Set<string>();
+  const doubleNikCodes = new Set<string>();
 
   records.forEach(r => {
     if (r.nik) uniquePersonnel.add(r.nik);
@@ -377,6 +378,7 @@ export function calculateMetrics(records: TrainingRecord[]): DashboardMetrics {
       if (r.kodeToko) doubleStoreCodes.add(r.kodeToko);
     } else if (r.status === 'BENTROK NIK') {
       totalBentrokNik++;
+      if (r.nik) doubleNikCodes.add(r.nik);
     }
 
     if (r.cabang) {
@@ -398,6 +400,7 @@ export function calculateMetrics(records: TrainingRecord[]): DashboardMetrics {
     totalDoubleToko,
     totalBentrokNik,
     affectedStoresCount: doubleStoreCodes.size,
+    affectedNikCount: doubleNikCodes.size,
     branches,
     trainings,
     sheetDistribution,

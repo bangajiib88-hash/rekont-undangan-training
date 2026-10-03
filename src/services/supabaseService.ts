@@ -12,6 +12,8 @@ export interface SupabaseRow {
   jabatan?: string;
   kode_toko: string;
   toko?: string;
+  as_val?: string;
+  am_val?: string;
   as?: string;
   am?: string;
   tanggal_awal: string;
@@ -45,8 +47,8 @@ export function recordToRow(r: TrainingRecord): SupabaseRow {
     jabatan: r.jabatan || 'Crew Toko',
     kode_toko: r.kodeToko,
     toko: r.toko || '',
-    as: r.as || '-',
-    am: r.am || '-',
+    as_val: r.as || '-',
+    am_val: r.am || '-',
     tanggal_awal: r.tanggalAwal,
     jenis_training: r.jenisTraining,
     batch: r.batch || 'Batch 1',
@@ -79,8 +81,8 @@ export function rowToRecord(row: SupabaseRow): TrainingRecord {
     jabatan: row.jabatan || 'Crew Toko',
     kodeToko: row.kode_toko,
     toko: row.toko || '',
-    as: row.as || '-',
-    am: row.am || '-',
+    as: row.as_val || row.as || '-',
+    am: row.am_val || row.am || '-',
     tanggalAwal: row.tanggal_awal,
     jenisTraining: row.jenis_training,
     batch: row.batch || 'Batch 1',
@@ -151,12 +153,73 @@ export async function checkSupabaseStatus(): Promise<{
 }
 
 /**
- * Fetches all training schedules from Supabase
+ * Fetches custom sheet definitions from Supabase
+ */
+export async function fetchCustomSheetsFromSupabase(): Promise<{ code: string; name: string; isCustom: boolean }[]> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('sheet_code, jenis_training, keterangan')
+      .or('keterangan.eq.__SHEET_REGISTRY__,id.like.sheet-def-%');
+
+    if (error || !data) return [];
+
+    return data
+      .filter(r => r.sheet_code && r.jenis_training)
+      .map(r => ({
+        code: r.sheet_code!,
+        name: r.jenis_training!,
+        isCustom: true,
+      }));
+  } catch (e) {
+    console.warn('Failed to fetch custom sheets from Supabase:', e);
+    return [];
+  }
+}
+
+/**
+ * Saves a new sheet definition to Supabase so all computers stay in sync
+ */
+export async function syncNewSheetToSupabase(sheet: { code: string; name: string; description?: string }): Promise<void> {
+  const row: SupabaseRow = {
+    id: `sheet-def-${sheet.code}`,
+    sheet_code: sheet.code,
+    nik: '000000',
+    nama: `[SHEET] ${sheet.name}`,
+    jabatan: 'Master Sheet',
+    kode_toko: 'HO',
+    toko: 'Head Office',
+    as_val: '-',
+    am_val: '-',
+    tanggal_awal: '2026-01-01',
+    jenis_training: sheet.name,
+    batch: 'Batch 1',
+    cabang: 'ALL',
+    status: 'AMAN',
+    berdasarkan_nik: 1,
+    berdasarkan_kode_toko: 1,
+    penggabungan: `2026-01-01___000000___${sheet.code}`,
+    keterangan: '__SHEET_REGISTRY__',
+  };
+
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .upsert(row, { onConflict: 'id' });
+
+  if (error) {
+    console.error('Failed to sync new sheet to Supabase:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches all training schedules from Supabase (excluding system registry rows)
  */
 export async function fetchSchedulesFromSupabase(): Promise<TrainingRecord[]> {
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('*')
+    .neq('keterangan', '__SHEET_REGISTRY__')
     .order('tanggal_awal', { ascending: true });
 
   if (error) {
@@ -167,7 +230,11 @@ export async function fetchSchedulesFromSupabase(): Promise<TrainingRecord[]> {
     return [];
   }
 
-  const records = (data as SupabaseRow[]).map(rowToRecord);
+  const validRows = (data as SupabaseRow[]).filter(
+    r => !r.id.startsWith('sheet-def-') && r.keterangan !== '__SHEET_REGISTRY__'
+  );
+
+  const records = validRows.map(rowToRecord);
   return validateAndEnrichRecords(records);
 }
 

@@ -9,7 +9,14 @@ export type TrainingMethod =
 
 export type TrainingStatus = 'AMAN' | 'DOUBLE TOKO' | 'BENTROK NIK';
 
-export const SHEET_LIST = [
+export interface SheetDefinition {
+  code: string;
+  name: string;
+  description?: string;
+  isCustom?: boolean;
+}
+
+export const DEFAULT_SHEET_LIST: SheetDefinition[] = [
   { code: 'FFIS', name: '1. FFIS (Fried Food IS)' },
   { code: 'FF', name: '2. FF (Fried Food)' },
   { code: 'FRESH', name: '3. FRESH (Perishable Khusus Toko Fresh)' },
@@ -29,9 +36,11 @@ export const SHEET_LIST = [
   { code: 'SJL', name: '17. SJL (Service & Jurnal)' },
   { code: 'SSL', name: '18. SSL' },
   { code: 'CIF', name: '19. CIF' },
-] as const;
+];
 
-export type SheetCode = typeof SHEET_LIST[number]['code'];
+export const SHEET_LIST = DEFAULT_SHEET_LIST;
+
+export type SheetCode = string;
 
 export interface RawTrainingInput {
   id?: string;
@@ -120,6 +129,7 @@ export interface DashboardMetrics {
   totalDoubleToko: number;
   totalBentrokNik: number;
   affectedStoresCount: number;
+  affectedNikCount: number;
   branches: { [cabang: string]: number };
   trainings: { [training: string]: number };
   sheetDistribution: { [sheetCode: string]: number };

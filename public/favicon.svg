@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Rounded Base with White Background for Tab Contrast -->
+  <rect width="64" height="64" rx="14" fill="#FFFFFF"/>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="none" stroke="#E2E8F0" stroke-width="1.5"/>
+
+  <!-- Indomaret Authentic 3-Color Horizontal Stripes (Blue, Red, Yellow) -->
+  <rect x="6" y="8" width="52" height="12" rx="3" fill="#005BAC"/>
+  <rect x="6" y="22" width="52" height="12" rx="3" fill="#E31B23"/>
+  <rect x="6" y="36" width="52" height="12" rx="3" fill="#FFC72C"/>
+
+  <!-- Distinctive "i" / Indomaret Brand Mark Center Emblem -->
+  <circle cx="32" cy="42" r="14" fill="#FFFFFF" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.15))"/>
+  <circle cx="32" cy="42" r="11" fill="#005BAC"/>
+  <!-- Yellow dot -->
+  <circle cx="32" cy="36" r="2.2" fill="#FFC72C"/>
+  <!-- White stylized 'i' stem -->
+  <rect x="30.2" y="40" width="3.6" height="7.5" rx="1.5" fill="#FFFFFF"/>
+  <!-- Red accent underline -->
+  <rect x="18" y="54" width="28" height="3" rx="1.5" fill="#E31B23"/>
+</svg>
