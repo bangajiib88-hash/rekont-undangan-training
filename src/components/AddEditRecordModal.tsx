@@ -1,13 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrainingRecord, SHEET_LIST, SheetDefinition, RawTrainingInput } from '../types/training';
-import { X, AlertCircle, Calendar, ChevronDown, ChevronUp, Layers, Check } from 'lucide-react';
+import { X, AlertCircle, Calendar, ShieldCheck, ChevronDown, ChevronUp, UserX, Store } from 'lucide-react';
 import { 
   generatePenggabunganKey, 
   dateToIso, 
   isoToDateIndo, 
   getAllSessionDates,
+  normalizeDateKey,
   mapTrainingToSheetCode 
 } from '../utils/trainingUtils';
+
+export const JABATAN_OPTIONS = [
+  'Store Jr. Leader',
+  'Store Crew Girl',
+  'Store Crew Boy',
+  'Store Crew Boy (Ss)',
+  'Store Crew Girl (Ss)',
+  'Store Jr. Leader (Ss)',
+  'Chief Of Store (Ss)',
+  'Chief Of Store',
+  'Store Sr. Leader (Ss)',
+  'Store Sr. Leader',
+  'Barista Point Coffee',
+];
 
 interface AddEditRecordModalProps {
   isOpen: boolean;
@@ -33,7 +48,7 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
   const [tanggalIso, setTanggalIso] = useState<string>('2026-10-12');
   const [nik, setNik] = useState<string>('');
   const [nama, setNama] = useState<string>('');
-  const [jabatan, setJabatan] = useState<string>('Crew Toko');
+  const [jabatan, setJabatan] = useState<string>('Store Jr. Leader');
   const [kodeToko, setKodeToko] = useState<string>('');
   const [toko, setToko] = useState<string>('');
   const [as, setAs] = useState<string>('-');
@@ -59,14 +74,14 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
   useEffect(() => {
     if (recordToEdit) {
       setSheetCode(recordToEdit.sheetCode || mapTrainingToSheetCode(recordToEdit.jenisTraining) || 'SBM');
-      setTanggalIso(dateToIso(recordToEdit.tanggalAwal));
-      setNik(recordToEdit.nik);
-      setNama(recordToEdit.nama);
-      setJabatan(recordToEdit.jabatan || 'Crew Toko');
-      setKodeToko(recordToEdit.kodeToko);
+      setTanggalIso(dateToIso(recordToEdit.tanggalAwal) || '2026-10-12');
+      setNik(recordToEdit.nik || '');
+      setNama(recordToEdit.nama || '');
+      setJabatan(recordToEdit.jabatan || 'Store Jr. Leader');
+      setKodeToko(recordToEdit.kodeToko || '');
       setToko(recordToEdit.toko || '');
       setAs(recordToEdit.as || '-');
-      setAm(recordToEdit.am || recordToEdit.nama);
+      setAm(recordToEdit.am || '-');
       setBatch(recordToEdit.batch || 'Batch 1');
       setCabang(recordToEdit.cabang || 'SBY');
       setKeterangan(recordToEdit.keterangan || 'OFFLINE CLASS');
@@ -84,6 +99,8 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
 
       if (recordToEdit.tanggalH1 || recordToEdit.tanggalH2) {
         setShowMultiDay(true);
+      } else {
+        setShowMultiDay(false);
       }
     } else {
       // Default new record
@@ -91,7 +108,7 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
       setTanggalIso('2026-10-12');
       setNik('');
       setNama('');
-      setJabatan('Crew Toko');
+      setJabatan('Store Jr. Leader');
       setKodeToko('');
       setToko('');
       setAs('-');
@@ -110,28 +127,57 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
   const jenisTraining = selectedSheetMeta?.name || 'TRAINING';
   const tanggalIndo = isoToDateIndo(tanggalIso);
 
-  // Live Clash Preview: Check if store or NIK will clash (Hooks must run before any return!)
+  // Collect all active dates entered for the current record
+  const currentInputDates = useMemo(() => {
+    const dates: string[] = [];
+    if (tanggalIso) dates.push(tanggalIso);
+    if (showMultiDay) {
+      [h1, h2, h3, h4, h5, h6, h7, h8, h9, h10].forEach(h => {
+        if (h) dates.push(h);
+      });
+    }
+    return dates.map(d => normalizeDateKey(d)).filter(Boolean);
+  }, [tanggalIso, showMultiDay, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10]);
+
+  // Live Clash Preview: Check if store or NIK will clash across ALL 19 sheets (Hooks must run before any return!)
   const clashPreview = useMemo(() => {
-    if (!kodeToko || !tanggalIndo) return null;
+    const cleanKode = kodeToko.trim().toUpperCase().replace(/\.$/, '');
+    const cleanNik = nik.trim();
+
+    if ((!cleanKode && !cleanNik) || currentInputDates.length === 0) return null;
 
     const currentId = recordToEdit?.id;
-    const storeClashes = existingRecords.filter(r => 
-      r.id !== currentId && 
-      r.kodeToko.trim().toUpperCase() === kodeToko.trim().toUpperCase() &&
-      r.tanggalAwal === tanggalIndo
-    );
+    const storeClashes: { record: TrainingRecord; clashDate: string }[] = [];
+    const nikClashes: { record: TrainingRecord; clashDate: string }[] = [];
 
-    const nikClashes = nik ? existingRecords.filter(r => 
-      r.id !== currentId &&
-      r.nik.trim() === nik.trim() &&
-      r.tanggalAwal === tanggalIndo
-    ) : [];
+    existingRecords.forEach(r => {
+      if (r.id === currentId) return;
+      const rDates = getAllSessionDates(r);
+      
+      // Find overlap
+      for (const d of rDates) {
+        const normD = normalizeDateKey(d);
+        if (normD && currentInputDates.includes(normD)) {
+          if (cleanKode && r.kodeToko && r.kodeToko.trim().toUpperCase().replace(/\.$/, '') === cleanKode) {
+            if (!storeClashes.some(c => c.record.id === r.id)) {
+              storeClashes.push({ record: r, clashDate: d });
+            }
+          }
+          if (cleanNik && r.nik && r.nik.trim() === cleanNik) {
+            if (!nikClashes.some(c => c.record.id === r.id)) {
+              nikClashes.push({ record: r, clashDate: d });
+            }
+          }
+        }
+      }
+    });
 
     return {
       storeClashes,
       nikClashes,
+      hasClash: storeClashes.length > 0 || nikClashes.length > 0,
     };
-  }, [kodeToko, tanggalIndo, nik, existingRecords, recordToEdit]);
+  }, [kodeToko, nik, currentInputDates, existingRecords, recordToEdit]);
 
   const previewPenggabungan = generatePenggabunganKey(tanggalIndo, nik, jenisTraining);
 
@@ -150,8 +196,8 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
       jabatan: jabatan.trim(),
       kodeToko: kodeToko.trim().toUpperCase(),
       toko: toko.trim().toUpperCase(),
-      as: as.trim(),
-      am: am.trim(),
+      as: as.trim() || '-',
+      am: am.trim() || '-',
       batch: batch.trim(),
       jenisTraining,
       cabang: cabang.trim().toUpperCase(),
@@ -177,17 +223,19 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col transition-colors">
         {/* Indomaret Authentic Tri-Color Accent */}
         <div className="h-1.5 w-full indomaret-stripe shrink-0" />
+        
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 shrink-0">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-50">
               {recordToEdit ? 'Ubah Data Jadwal Training' : 'Tambah Jadwal Training Baru'}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Sistem akan otomatis mengkroscek potensi DOUBLE TOKO &amp; BENTROK NIK di seluruh sheet
+              Sistem otomatis mengkroscek potensi DOUBLE TOKO &amp; BENTROK NIK di seluruh sheet training secara real-time.
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors"
           >
@@ -197,32 +245,76 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1">
-          {/* Clash Alert Banner */}
-          {clashPreview && (clashPreview.storeClashes.length > 0 || clashPreview.nikClashes.length > 0) && (
-            <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 rounded-xl space-y-2 text-xs text-rose-800 dark:text-red-300">
-              {clashPreview.storeClashes.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-[#E31B23] dark:text-red-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">PERINGATAN DOUBLE TOKO:</span> Toko <strong>{kodeToko.toUpperCase()}</strong> sudah memiliki <strong>{clashPreview.storeClashes.length} personil lain</strong> terdaftar pada tanggal yang sama:
-                    <ul className="list-disc pl-4 mt-1 space-y-0.5">
-                      {clashPreview.storeClashes.map(c => (
-                        <li key={c.id}>
-                          <strong>{c.nama}</strong> ({c.jenisTraining} · Cabang {c.cabang})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
+          {/* Live Cross-check Banner */}
+          {clashPreview && clashPreview.hasClash && (
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-300 dark:border-rose-800 rounded-xl space-y-3 text-xs shadow-xs animate-in fade-in duration-150">
+              {/* Double NIK Clash Warning */}
               {clashPreview.nikClashes.length > 0 && (
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-amber-900 dark:text-amber-300">PERINGATAN BENTROK NIK:</span> NIK ini sudah terjadwal di training lain pada hari yang sama ({clashPreview.nikClashes[0].jenisTraining}).
+                <div className="flex items-start gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-purple-600 text-white shrink-0 mt-0.5 shadow-2xs">
+                    <UserX className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-bold text-purple-900 dark:text-purple-200 text-[13px] block">
+                      ⛔ PERINGATAN BENTROK NIK ({clashPreview.nikClashes.length} bentrok)
+                    </span>
+                    <p className="text-purple-950 dark:text-purple-200 mt-0.5">
+                      NIK <strong>{nik}</strong> sudah terdaftar di sesi training lain pada tanggal yang sama:
+                    </p>
+                    <div className="mt-1.5 space-y-1 bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-purple-200 dark:border-purple-800">
+                      {clashPreview.nikClashes.map((c, i) => (
+                        <div key={i} className="flex items-center justify-between text-[11px] text-slate-800 dark:text-slate-200">
+                          <span>
+                            • <strong>{c.record.nama}</strong> ({c.record.jenisTraining} · Sheet <strong>{c.record.sheetCode}</strong>)
+                          </span>
+                          <span className="font-mono font-bold text-purple-700 dark:text-purple-300">
+                            {c.clashDate}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
+
+              {/* Double Toko Clash Warning */}
+              {clashPreview.storeClashes.length > 0 && (
+                <div className="flex items-start gap-2.5 pt-2 border-t border-rose-200 dark:border-rose-800">
+                  <div className="p-1.5 rounded-lg bg-[#E31B23] text-white shrink-0 mt-0.5 shadow-2xs">
+                    <Store className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-bold text-[#E31B23] dark:text-red-300 text-[13px] block">
+                      ⚠️ PERINGATAN DOUBLE TOKO ({clashPreview.storeClashes.length} personil bentrok)
+                    </span>
+                    <p className="text-rose-950 dark:text-red-200 mt-0.5">
+                      Toko <strong>{kodeToko.toUpperCase()}</strong> ({toko || clashPreview.storeClashes[0].record.toko || 'Toko'}) sudah mengirimkan personil pada tanggal yang sama:
+                    </p>
+                    <div className="mt-1.5 space-y-1 bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-red-200 dark:border-red-800">
+                      {clashPreview.storeClashes.map((c, i) => (
+                        <div key={i} className="flex items-center justify-between text-[11px] text-slate-800 dark:text-slate-200">
+                          <span>
+                            • <strong>{c.record.nama}</strong> ({c.record.jabatan} · {c.record.jenisTraining} [Sheet {c.record.sheetCode}])
+                          </span>
+                          <span className="font-mono font-bold text-[#E31B23] dark:text-red-400">
+                            {c.clashDate}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Safe Check Badge if inputs filled and no clash */}
+          {kodeToko && nik && tanggalIndo && clashPreview && !clashPreview.hasClash && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl flex items-center gap-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>
+                <strong>Status Kroscek Aman:</strong> Toko <strong>{kodeToko.toUpperCase()}</strong> dan NIK <strong>{nik}</strong> tidak memiliki jadwal bentrok di 19 sheet training pada tanggal {tanggalIndo}.
+              </span>
             </div>
           )}
 
@@ -325,13 +417,7 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
               <input
                 type="text"
                 value={nama}
-                onChange={e => {
-                  const val = e.target.value.toUpperCase();
-                  setNama(val);
-                  if (!recordToEdit && (!am || am === nama || am === '-')) {
-                    setAm(val);
-                  }
-                }}
+                onChange={e => setNama(e.target.value.toUpperCase())}
                 placeholder="NAMA LENGKAP PESERTA"
                 className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden uppercase font-semibold"
                 required
@@ -339,7 +425,7 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
             </div>
           </div>
 
-          {/* Toko & Jabatan */}
+          {/* Toko & Jabatan Dropdown */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -370,15 +456,20 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                JABATAN
+                JABATAN *
               </label>
-              <input
-                type="text"
+              <select
                 value={jabatan}
                 onChange={e => setJabatan(e.target.value)}
-                placeholder="Crew Toko / Barista / ACOS"
-                className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden"
-              />
+                className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden font-medium"
+              >
+                {JABATAN_OPTIONS.map(j => (
+                  <option key={j} value={j}>{j}</option>
+                ))}
+                {!JABATAN_OPTIONS.includes(jabatan) && jabatan && (
+                  <option value={jabatan}>{jabatan}</option>
+                )}
+              </select>
             </div>
           </div>
 
@@ -409,37 +500,22 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
                 type="text"
                 value={as}
                 onChange={e => setAs(e.target.value)}
-                placeholder="Nama AS"
+                placeholder="Nama AS (atau -)"
                 className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden"
               />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  AREA MANAGER (AM)
-                </label>
-                {nama && (
-                  <button
-                    type="button"
-                    onClick={() => setAm(nama)}
-                    className="text-[10px] text-[#005BAC] dark:text-blue-400 hover:underline font-semibold"
-                    title="Samakan dengan nama peserta"
-                  >
-                    Samakan Peserta
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                AREA MANAGER (AM)
+              </label>
               <input
                 type="text"
                 value={am}
-                onChange={e => setAm(e.target.value.toUpperCase())}
-                placeholder="Sama dengan nama peserta"
-                className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden uppercase font-semibold"
+                onChange={e => setAm(e.target.value)}
+                placeholder="Nama AM (atau -)"
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden"
               />
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
-                * Otomatis terisi sama dengan nama peserta
-              </span>
             </div>
           </div>
 
@@ -458,26 +534,29 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
               <option value="LIVE STREAMING">LIVE STREAMING</option>
               <option value="OFFLINE CLASS H1">OFFLINE CLASS H1</option>
               <option value="OFFLINE CLASS H2">OFFLINE CLASS H2</option>
+              <option value="HYBRID">HYBRID</option>
               <option value="-">-</option>
             </select>
           </div>
 
-          {/* Optional Multi-Day Sessions Toggle (H1 - H10) */}
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+          {/* Multi-day schedule accordion */}
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
             <button
               type="button"
               onClick={() => setShowMultiDay(!showMultiDay)}
-              className="text-xs font-bold text-[#005BAC] dark:text-blue-400 hover:underline flex items-center gap-1.5"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-              <Layers className="w-3.5 h-3.5" />
-              <span>{showMultiDay ? 'Sembunyikan Sesi Hari H1 - H10' : '+ Tambah Tanggal Multi-Hari (H1 s/d H10)'}</span>
-              {showMultiDay ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              <div className="flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5 text-[#005BAC] dark:text-blue-400" />
+                <span>Jadwal Lanjutan Multi-Hari (H1 s/d H10) - Opsional</span>
+              </div>
+              {showMultiDay ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
 
             {showMultiDay && (
-              <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
-                  Pilih tanggal untuk sesi multi-hari. Sistem akan otomatis mendeteksi bentrok jadwal di setiap hari yang ditentukan.
+              <div className="p-4 bg-white dark:bg-slate-900 space-y-3 border-t border-slate-200 dark:border-slate-800">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Isi tanggal jika program training berlangsung beberapa hari (misal Soft Skill H1-H6 atau Eva SC H1-H2). Sistem akan otomatis mengkroscek potensi bentrok di setiap hari.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   <div>
@@ -582,7 +661,7 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
             <button
               type="button"
               onClick={onClose}

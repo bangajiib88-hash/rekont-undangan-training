@@ -160,6 +160,18 @@ export function mapTrainingToSheetCode(trainingName: string): string {
 }
 
 /**
+ * Normalizes date to ISO YYYY-MM-DD or standardized string key for collision detection
+ */
+export function normalizeDateKey(dateStr?: string): string {
+  if (!dateStr) return '';
+  const clean = String(dateStr).trim();
+  if (!clean || clean === '-') return '';
+  const iso = dateToIso(clean);
+  if (iso) return iso;
+  return clean.toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
  * Returns all active session dates for a record (primary date plus H1..H10)
  */
 export function getAllSessionDates(r: {
@@ -208,7 +220,7 @@ export function validateAndEnrichRecords(
       toko: (r.toko || '').trim().toUpperCase(),
       nik: (r.nik || '').trim(),
       nama: (r.nama || '').trim().toUpperCase(),
-      jabatan: (r.jabatan || 'Crew Toko').trim(),
+      jabatan: (r.jabatan || 'Store Jr. Leader').trim(),
       as: (r.as || '-').trim(),
       am: (r.am !== undefined && r.am !== null && String(r.am).trim() !== '' ? String(r.am).trim().toUpperCase() : '-'),
       batch: (r.batch || 'Batch 1').trim(),
@@ -219,21 +231,21 @@ export function validateAndEnrichRecords(
     };
   });
 
-  // Build occurrence maps across all active dates
-  // Map<`${date}___${nik}`, number>
+  // Build occurrence maps across all active dates with normalized keys
   const nikDateMap = new Map<string, number>();
-  // Map<`${date}___${kodeToko}`, number>
   const storeDateMap = new Map<string, number>();
 
   cleanRecords.forEach(r => {
     const dates = getAllSessionDates(r);
     dates.forEach(d => {
+      const normD = normalizeDateKey(d);
+      if (!normD) return;
       if (r.nik) {
-        const nikKey = `${d}___${r.nik}`;
+        const nikKey = `${normD}___${r.nik}`;
         nikDateMap.set(nikKey, (nikDateMap.get(nikKey) || 0) + 1);
       }
       if (r.kodeToko) {
-        const storeKey = `${d}___${r.kodeToko}`;
+        const storeKey = `${normD}___${r.kodeToko}`;
         storeDateMap.set(storeKey, (storeDateMap.get(storeKey) || 0) + 1);
       }
     });
@@ -246,8 +258,10 @@ export function validateAndEnrichRecords(
     let maxStoreCount = 1;
 
     dates.forEach(d => {
-      const nC = nikDateMap.get(`${d}___${r.nik}`) || 1;
-      const sC = r.kodeToko ? (storeDateMap.get(`${d}___${r.kodeToko}`) || 1) : 1;
+      const normD = normalizeDateKey(d);
+      if (!normD) return;
+      const nC = nikDateMap.get(`${normD}___${r.nik}`) || 1;
+      const sC = r.kodeToko ? (storeDateMap.get(`${normD}___${r.kodeToko}`) || 1) : 1;
       if (nC > maxNikCount) maxNikCount = nC;
       if (sC > maxStoreCount) maxStoreCount = sC;
     });
@@ -275,36 +289,37 @@ export function validateAndEnrichRecords(
  * Groups store conflicts
  */
 export function getStoreClashes(records: TrainingRecord[]): StoreClashGroup[] {
-  const storeDateMap = new Map<string, TrainingRecord[]>();
+  const storeDateMap = new Map<string, { displayDate: string; records: TrainingRecord[] }>();
 
   records.forEach(r => {
     if (r.kodeToko) {
       const dates = getAllSessionDates(r);
       dates.forEach(d => {
-        const key = `${r.kodeToko}___${d}`;
+        const normD = normalizeDateKey(d);
+        if (!normD) return;
+        const key = `${r.kodeToko}___${normD}`;
         if (!storeDateMap.has(key)) {
-          storeDateMap.set(key, []);
+          storeDateMap.set(key, { displayDate: d, records: [] });
         }
-        // Avoid duplicate push if same record
-        const list = storeDateMap.get(key)!;
-        if (!list.some(item => item.id === r.id)) {
-          list.push(r);
+        const group = storeDateMap.get(key)!;
+        if (!group.records.some(item => item.id === r.id)) {
+          group.records.push(r);
         }
       });
     }
   });
 
   const clashGroups: StoreClashGroup[] = [];
-  storeDateMap.forEach((participants, key) => {
-    if (participants.length > 1) {
-      const [kodeToko, tanggalAwal] = key.split('___');
+  storeDateMap.forEach((group, key) => {
+    if (group.records.length > 1) {
+      const [kodeToko] = key.split('___');
       clashGroups.push({
         kodeToko,
-        toko: participants[0].toko,
-        tanggalAwal,
-        cabang: participants[0].cabang || 'SBY',
-        count: participants.length,
-        participants,
+        toko: group.records[0].toko,
+        tanggalAwal: group.displayDate,
+        cabang: group.records[0].cabang || 'SBY',
+        count: group.records.length,
+        participants: group.records,
       });
     }
   });
@@ -316,34 +331,36 @@ export function getStoreClashes(records: TrainingRecord[]): StoreClashGroup[] {
  * Groups NIK conflicts
  */
 export function getNikClashes(records: TrainingRecord[]): NikClashGroup[] {
-  const nikDateMap = new Map<string, TrainingRecord[]>();
+  const nikDateMap = new Map<string, { displayDate: string; records: TrainingRecord[] }>();
 
   records.forEach(r => {
     if (r.nik) {
       const dates = getAllSessionDates(r);
       dates.forEach(d => {
-        const key = `${r.nik}___${d}`;
+        const normD = normalizeDateKey(d);
+        if (!normD) return;
+        const key = `${r.nik}___${normD}`;
         if (!nikDateMap.has(key)) {
-          nikDateMap.set(key, []);
+          nikDateMap.set(key, { displayDate: d, records: [] });
         }
-        const list = nikDateMap.get(key)!;
-        if (!list.some(item => item.id === r.id)) {
-          list.push(r);
+        const group = nikDateMap.get(key)!;
+        if (!group.records.some(item => item.id === r.id)) {
+          group.records.push(r);
         }
       });
     }
   });
 
   const clashGroups: NikClashGroup[] = [];
-  nikDateMap.forEach((participants, key) => {
-    if (participants.length > 1) {
-      const [nik, tanggalAwal] = key.split('___');
+  nikDateMap.forEach((group, key) => {
+    if (group.records.length > 1) {
+      const [nik] = key.split('___');
       clashGroups.push({
         nik,
-        nama: participants[0].nama,
-        tanggalAwal,
-        count: participants.length,
-        participants,
+        nama: group.records[0].nama,
+        tanggalAwal: group.displayDate,
+        count: group.records.length,
+        participants: group.records,
       });
     }
   });
