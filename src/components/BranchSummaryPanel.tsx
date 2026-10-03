@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
-import { TrainingRecord, DashboardMetrics } from '../types/training';
-import { Building2, BookOpen } from 'lucide-react';
+import { TrainingRecord, DashboardMetrics, SheetDefinition, SHEET_LIST } from '../types/training';
+import { Building2, BookOpen, ArrowRight, ExternalLink } from 'lucide-react';
+import { mapTrainingToSheetCode } from '../utils/trainingUtils';
 
 interface BranchSummaryPanelProps {
   records: TrainingRecord[];
   metrics: DashboardMetrics;
   onFilterCabang: (cabang: string) => void;
-  onFilterTraining: (training: string) => void;
+  onFilterTraining: (sheetCode: string, trainingName: string) => void;
+  sheetList?: SheetDefinition[];
 }
 
 export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
@@ -14,6 +16,7 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
   metrics,
   onFilterCabang,
   onFilterTraining,
+  sheetList = SHEET_LIST,
 }) => {
   // Compute detailed branch stats
   const branchDetails = useMemo(() => {
@@ -34,14 +37,32 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
     return Array.from(map.entries()).sort((a, b) => b[1].total - a[1].total);
   }, [records]);
 
-  // Compute detailed training type stats
+  // Compute detailed training type stats with corresponding Sheet Code
   const trainingDetails = useMemo(() => {
-    const map = new Map<string, { total: number; aman: number; doubleToko: number; branches: Set<string> }>();
+    const map = new Map<string, { 
+      total: number; 
+      aman: number; 
+      doubleToko: number; 
+      branches: Set<string>; 
+      sheetCode: string;
+      sheetName: string;
+    }>();
 
     records.forEach(r => {
       const t = r.jenisTraining || 'LAINNYA';
+      const resolvedCode = r.sheetCode || mapTrainingToSheetCode(t);
+      const sheetDef = sheetList.find(s => s.code === resolvedCode);
+      const sheetDisplayName = sheetDef?.name || resolvedCode;
+
       if (!map.has(t)) {
-        map.set(t, { total: 0, aman: 0, doubleToko: 0, branches: new Set() });
+        map.set(t, { 
+          total: 0, 
+          aman: 0, 
+          doubleToko: 0, 
+          branches: new Set(),
+          sheetCode: resolvedCode,
+          sheetName: sheetDisplayName,
+        });
       }
       const entry = map.get(t)!;
       entry.total++;
@@ -51,7 +72,7 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
     });
 
     return Array.from(map.entries()).sort((a, b) => b[1].total - a[1].total);
-  }, [records]);
+  }, [records, sheetList]);
 
   return (
     <div className="space-y-6">
@@ -71,10 +92,11 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
               <div
                 key={cabang}
                 onClick={() => onFilterCabang(cabang)}
-                className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/60 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:border-[#005BAC] dark:hover:border-blue-500 hover:shadow-xs transition-all cursor-pointer"
+                className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/60 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:border-[#005BAC] dark:hover:border-blue-500 hover:shadow-xs transition-all cursor-pointer group"
+                title={`Klik untuk melihat seluruh jadwal Cabang ${cabang}`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-base text-slate-900 dark:text-slate-100">
+                  <span className="font-bold text-base text-slate-900 dark:text-slate-100 group-hover:text-[#005BAC] dark:group-hover:text-blue-400 transition-colors">
                     Cabang {cabang}
                   </span>
                   <span className="text-xs font-mono font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-0.5 rounded">
@@ -109,11 +131,16 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
 
       {/* Program Training Breakdown */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs transition-colors">
-        <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="w-5 h-5 text-[#005BAC] dark:text-blue-400" />
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-50 uppercase tracking-wider">
-            Distribusi Jenis Program Training
-          </h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-[#005BAC] dark:text-blue-400" />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-50 uppercase tracking-wider">
+              Distribusi Jenis Program Training
+            </h3>
+          </div>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            Klik <strong>"Lihat Data"</strong> untuk langsung membuka sheet training yang dituju
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -121,6 +148,7 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
             <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="py-2.5 px-3">JENIS TRAINING</th>
+                <th className="py-2.5 px-3">TARGET SHEET</th>
                 <th className="py-2.5 px-3 text-right">TOTAL PESERTA</th>
                 <th className="py-2.5 px-3 text-right">STATUS AMAN</th>
                 <th className="py-2.5 px-3 text-right">DOUBLE TOKO</th>
@@ -130,9 +158,14 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {trainingDetails.map(([training, data]) => (
-                <tr key={training} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <tr key={training} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">
                     {training}
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-blue-50 dark:bg-blue-950/80 text-[#005BAC] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      Sheet {data.sheetCode}
+                    </span>
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
                     {data.total}
@@ -154,10 +187,13 @@ export const BranchSummaryPanel: React.FC<BranchSummaryPanelProps> = ({
                   </td>
                   <td className="py-2.5 px-3 text-center">
                     <button
-                      onClick={() => onFilterTraining(training)}
-                      className="text-xs text-[#005BAC] dark:text-blue-400 hover:underline font-bold"
+                      type="button"
+                      onClick={() => onFilterTraining(data.sheetCode, training)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] active:scale-95 rounded-lg shadow-2xs transition-all cursor-pointer"
+                      title={`Buka Sheet ${data.sheetCode} (${training})`}
                     >
-                      Lihat Data
+                      <span>Lihat Data</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </td>
                 </tr>

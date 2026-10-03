@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { TrainingRecord, SHEET_LIST, SheetDefinition } from '../types/training';
+import { AppUser } from '../types/auth';
 import { 
   Search, Filter, Trash2, Edit2, AlertCircle, ShieldCheck, 
-  ArrowUpDown, ExternalLink, Calendar, Layers, Sparkles, Database, RefreshCw, Plus 
+  ArrowUpDown, ExternalLink, Calendar, Layers, Sparkles, Database, RefreshCw, Plus, Building2 
 } from 'lucide-react';
 import { getAllSessionDates } from '../utils/trainingUtils';
 
@@ -23,6 +24,7 @@ interface ScheduleTableProps {
   onOpenImportExport?: () => void;
   onSyncCloud?: () => void;
   isCloudSyncing?: boolean;
+  currentUser?: AppUser | null;
 }
 
 export const ScheduleTable: React.FC<ScheduleTableProps> = ({
@@ -42,9 +44,12 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({
   onOpenImportExport,
   onSyncCloud,
   isCloudSyncing = false,
+  currentUser,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCabang, setSelectedCabang] = useState('ALL');
+  const isCabangUser = currentUser?.role === 'CABANG' && Boolean(currentUser?.cabang);
+  const userCabang = currentUser?.cabang || 'SBY';
+  const [selectedCabang, setSelectedCabang] = useState(isCabangUser ? userCabang : 'ALL');
   const [selectedDate, setSelectedDate] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -230,16 +235,23 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({
           {/* Quick Filters */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Cabang */}
-            <select
-              value={selectedCabang}
-              onChange={e => { setSelectedCabang(e.target.value); setCurrentPage(1); }}
-              className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-[#005BAC]"
-            >
-              <option value="ALL">Semua Cabang ({uniqueBranches.length})</option>
-              {uniqueBranches.map(c => (
-                <option key={c} value={c}>Cabang {c}</option>
-              ))}
-            </select>
+            {isCabangUser ? (
+              <div className="px-2.5 py-1.5 text-xs bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-700 rounded-lg text-amber-900 dark:text-amber-200 font-bold flex items-center gap-1.5 shadow-2xs">
+                <Building2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Cabang {userCabang} (Terkunci)</span>
+              </div>
+            ) : (
+              <select
+                value={selectedCabang}
+                onChange={e => { setSelectedCabang(e.target.value); setCurrentPage(1); }}
+                className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-[#005BAC]"
+              >
+                <option value="ALL">Semua Cabang ({uniqueBranches.length})</option>
+                {uniqueBranches.map(c => (
+                  <option key={c} value={c}>Cabang {c}</option>
+                ))}
+              </select>
+            )}
 
             {/* Tanggal */}
             <select
@@ -611,7 +623,7 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({
 
       {/* Pagination Footer */}
       <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span>Menampilkan {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredRecords.length)} dari {filteredRecords.length} data</span>
           <span>·</span>
           <span>Per halaman:</span>

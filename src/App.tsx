@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrainingRecord, RawTrainingInput, SheetDefinition, DEFAULT_SHEET_LIST } from './types/training';
+import { AppUser, INITIAL_DEFAULT_USERS } from './types/auth';
 import { loadDefaultRecords } from './data/fullDataset';
 import { 
   validateAndEnrichRecords, 
@@ -11,14 +12,23 @@ import {
 import { Header } from './components/Header';
 import { MetricsCards } from './components/MetricsCards';
 import { ScheduleTable } from './components/ScheduleTable';
-import { ClashDetectorPanel } from './components/ClashDetectorPanel';
-import { CalendarView } from './components/CalendarView';
 import { BranchSummaryPanel } from './components/BranchSummaryPanel';
 import { AddEditRecordModal } from './components/AddEditRecordModal';
 import { ImportExportModal } from './components/ImportExportModal';
 import { SupabaseModal } from './components/SupabaseModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { AddSheetModal } from './components/AddSheetModal';
+import { LoginScreen } from './components/LoginScreen';
+import { UserManagementModal } from './components/UserManagementModal';
+import { 
+  getLocalUsers, 
+  saveLocalUsers, 
+  getCurrentUser, 
+  setCurrentUser, 
+  syncUserToSupabase, 
+  fetchUsersFromSupabase,
+  deleteUserFromSupabase 
+} from './services/userService';
 import { 
   checkSupabaseStatus, 
   fetchSchedulesFromSupabase, 
@@ -29,12 +39,18 @@ import {
   syncNewSheetToSupabase,
   fetchCustomSheetsFromSupabase
 } from './services/supabaseService';
-import { Database, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { Database, CheckCircle2, AlertCircle, Sparkles, Building2, Shield } from 'lucide-react';
 
 const STORAGE_KEY = 'store_training_records_v2';
 const SHEETS_STORAGE_KEY = 'store_custom_sheets_v1';
 
 export default function App() {
+  // Authentication & Multi-branch User State
+  const [currentUser, setCurrentUserState] = useState<AppUser | null>(() => getCurrentUser());
+  const [users, setUsers] = useState<AppUser[]>(() => getLocalUsers());
+  const [isUserManagementModalOpen, setIsUserManagementModalOpen] = useState(false);
+
+  // Training Records State
   const [records, setRecords] = useState<TrainingRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -50,7 +66,7 @@ export default function App() {
     return [];
   });
 
-  const [activeTab, setActiveTab] = useState<'jadwal' | 'bentrok' | 'kalender' | 'rekap'>('jadwal');
+  const [activeTab, setActiveTab] = useState<'jadwal' | 'rekap'>('jadwal');
   const [selectedSheet, setSelectedSheet] = useState<string>('MASTER');
   const [statusFilter, setStatusFilter] = useState('ALL');
   
@@ -116,37 +132,55 @@ export default function App() {
   // Toast feedback
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
-  // Cloud status & syncing state
-  const [supabaseConnected, setSupabaseConnected] = useState<boolean | null>(null);
-  const [supabaseTableExists, setSupabaseTableExists] = useState<boolean>(false);
-  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
-
-  // Toast helper
   const showToast = (type: 'success' | 'error' | 'info', text: string) => {
     setToastMessage({ type, text });
-    setTimeout(() => setToastMessage(null), 4000);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
   };
 
-  // Sync to localStorage
+  // Cloud status & syncing state
+  const [supabaseConnected, setSupabaseConnected] = useState<boolean | null>(null);
+  const [supabaseTableExists, setSupabaseTableExists] = useState(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+  // Persistent storage for records
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     } catch (e) {
-      console.error('Failed to persist to storage:', e);
+      console.error('Failed to save to storage:', e);
     }
   }, [records]);
 
-  // Cloud check & auto bidirectional sync
+  // Initial Supabase & Users connection check
   useEffect(() => {
     async function checkCloud() {
       try {
-        setIsCloudSyncing(true);
         const status = await checkSupabaseStatus();
         setSupabaseConnected(status.connected);
         setSupabaseTableExists(status.tableExists);
 
-        if (status.tableExists) {
-          // 1. Fetch custom sheets from Supabase
+        // Fetch users from cloud if available
+        try {
+          const cloudUsers = await fetchUsersFromSupabase();
+          if (cloudUsers.length > 0) {
+            setUsers(prev => {
+              const map = new Map<string, AppUser>();
+              INITIAL_DEFAULT_USERS.forEach(u => map.set(u.username, u));
+              prev.forEach(u => map.set(u.username, u));
+              cloudUsers.forEach(u => map.set(u.username, u));
+              const merged = Array.from(map.values());
+              saveLocalUsers(merged);
+              return merged;
+            });
+          }
+        } catch (e) {
+          console.warn('Cloud users fetch skipped:', e);
+        }
+
+        if (status.connected && status.tableExists) {
+          // Fetch custom sheets
           try {
             const cloudSheets = await fetchCustomSheetsFromSupabase();
             if (cloudSheets.length > 0) {
@@ -166,35 +200,14 @@ export default function App() {
             console.warn('Failed to load custom sheets from cloud:', e);
           }
 
-          // 2. Fetch or sync schedules
+          // Fetch schedules
           if (status.rowCount > 0) {
-            // Load latest data from cloud so all computers are synchronized
             const cloudData = await fetchSchedulesFromSupabase();
             if (cloudData.length > 0) {
               setRecords(cloudData);
-              // Also ensure any sheet code found in cloud data is registered in sheetList
-              setSheetList(prev => {
-                const map = new Map<string, SheetDefinition>();
-                prev.forEach(s => map.set(s.code, s));
-                cloudData.forEach(r => {
-                  if (r.sheetCode && !map.has(r.sheetCode)) {
-                    map.set(r.sheetCode, {
-                      code: r.sheetCode,
-                      name: r.jenisTraining || `${map.size + 1}. ${r.sheetCode}`,
-                      isCustom: true,
-                    });
-                  }
-                });
-                const merged = Array.from(map.values());
-                try {
-                  localStorage.setItem(SHEETS_STORAGE_KEY, JSON.stringify(merged));
-                } catch {}
-                return merged;
-              });
               showToast('info', `Tersinkronisasi otomatis dengan ${cloudData.length} data jadwal dari Cloud Supabase.`);
             }
           } else if (records.length > 0) {
-            // Cloud is empty, push existing local records so other computers can access them immediately
             const pushRes = await syncAllRecordsToSupabase(records);
             if (pushRes.success) {
               showToast('success', `${pushRes.count} data jadwal lokal otomatis diunggah ke Cloud Supabase.`);
@@ -223,30 +236,10 @@ export default function App() {
         return;
       }
 
-      // Sync custom sheets
-      try {
-        const cloudSheets = await fetchCustomSheetsFromSupabase();
-        if (cloudSheets.length > 0) {
-          setSheetList(prev => {
-            const map = new Map<string, SheetDefinition>();
-            DEFAULT_SHEET_LIST.forEach(s => map.set(s.code, s));
-            prev.forEach(s => map.set(s.code, s));
-            cloudSheets.forEach(s => map.set(s.code, s));
-            const merged = Array.from(map.values());
-            try {
-              localStorage.setItem(SHEETS_STORAGE_KEY, JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to sync custom sheets from cloud:', e);
-      }
-
       if (status.rowCount > 0) {
         const cloudData = await fetchSchedulesFromSupabase();
         setRecords(cloudData);
-        showToast('success', `Berhasil menarik ${cloudData.length} data jadwal dan sheet dari Cloud Supabase!`);
+        showToast('success', `Berhasil menarik ${cloudData.length} data jadwal dari Cloud Supabase!`);
       } else if (records.length > 0) {
         const res = await syncAllRecordsToSupabase(records);
         if (res.success) {
@@ -280,40 +273,94 @@ export default function App() {
       console.warn('Failed to cache custom sheet:', e);
     }
 
-    // Automatically select the new sheet
     setSelectedSheet(def.code);
     setActiveTab('jadwal');
 
-    // Automatically sync to Supabase
     if (supabaseTableExists || supabaseConnected) {
       try {
         await syncNewSheetToSupabase(def);
-        showToast('success', `Sheet "${def.name}" berhasil dibuat dan otomatis disinkronkan ke database Supabase Cloud.`);
+        showToast('success', `Sheet "${def.name}" berhasil dibuat dan otomatis disinkronkan ke Supabase.`);
       } catch (err: any) {
-        showToast('info', `Sheet "${def.name}" berhasil ditambahkan lokal (Koneksi cloud: ${err?.message || 'tersimpan'}).`);
+        showToast('info', `Sheet "${def.name}" berhasil ditambahkan lokal.`);
       }
     } else {
       showToast('success', `Sheet "${def.name}" berhasil ditambahkan ke sistem.`);
     }
   };
 
-  // Dynamic calculations
-  const metrics = useMemo(() => calculateMetrics(records), [records]);
-  const storeClashes = useMemo(() => getStoreClashes(records), [records]);
-  const nikClashes = useMemo(() => getNikClashes(records), [records]);
+  // User Authentication Handlers
+  const handleLogin = (user: AppUser) => {
+    setCurrentUserState(user);
+    setCurrentUser(user);
+    showToast('success', `Selamat datang, ${user.nama}! Anda login sebagai ${user.role === 'PUSAT' ? 'Admin Pusat (Semua Cabang)' : 'Admin Cabang ' + user.cabang}.`);
+  };
 
-  // Handlers
+  const handleLogout = () => {
+    setCurrentUserState(null);
+    setCurrentUser(null);
+    showToast('info', 'Anda telah keluar dari aplikasi.');
+  };
+
+  const handleAddUser = async (newUser: AppUser) => {
+    const nextUsers = [...users.filter(u => u.username !== newUser.username), newUser];
+    setUsers(nextUsers);
+    saveLocalUsers(nextUsers);
+    await syncUserToSupabase(newUser);
+    showToast('success', `Akun ${newUser.nama} (${newUser.username}) berhasil didaftarkan! User cabang sekarang bisa login.`);
+  };
+
+  const handleDeleteUser = async (username: string) => {
+    const nextUsers = users.filter(u => u.username !== username);
+    setUsers(nextUsers);
+    saveLocalUsers(nextUsers);
+    await deleteUserFromSupabase(username);
+    showToast('success', `Akun ${username} berhasil dihapus.`);
+  };
+
+  // ==========================================
+  // DATA ISOLATION (Role-Based Access Control)
+  // ==========================================
+  const isPusat = currentUser?.role === 'PUSAT';
+  const userCabang = currentUser?.cabang || 'SBY';
+
+  // Branch-isolated records: Admin Cabang ONLY sees their own branch records!
+  const visibleRecords = useMemo(() => {
+    if (!currentUser) return [];
+    if (isPusat || !currentUser?.cabang || currentUser.cabang === 'ALL') {
+      return records;
+    }
+    return records.filter(r => (r.cabang || '').trim().toUpperCase() === userCabang.trim().toUpperCase());
+  }, [records, isPusat, currentUser, userCabang]);
+
+  // Dynamic calculations based on visible records
+  const metrics = useMemo(() => calculateMetrics(visibleRecords), [visibleRecords]);
+  const storeClashes = useMemo(() => getStoreClashes(visibleRecords), [visibleRecords]);
+  const nikClashes = useMemo(() => getNikClashes(visibleRecords), [visibleRecords]);
+
+  // Extract all unique branches in system
+  const availableBranches = useMemo(() => {
+    const set = new Set<string>(['SBY', 'JAP', 'MNK', 'SON', 'MRK']);
+    records.forEach(r => { if (r.cabang) set.add(r.cabang.toUpperCase()); });
+    return Array.from(set).sort();
+  }, [records]);
+
+  // Handlers for record operations
   const handleSaveRecord = async (recordData: RawTrainingInput) => {
     let savedRecord: TrainingRecord;
+    // Enforce branch if user is Admin Cabang
+    const finalRecordData: RawTrainingInput = {
+      ...recordData,
+      cabang: !isPusat ? userCabang : (recordData.cabang || 'SBY'),
+    };
 
     if (recordToEdit) {
-      const updatedList = records.map(r => r.id === recordToEdit.id ? { ...r, ...recordData } : r);
+      const updatedList = records.map(r => r.id === recordToEdit.id ? { ...r, ...finalRecordData } : r);
       const validated = validateAndEnrichRecords(updatedList);
       setRecords(validated);
       savedRecord = validated.find(r => r.id === recordToEdit.id)!;
       showToast('success', `Jadwal ${savedRecord.nama} berhasil diperbarui.`);
     } else {
-      const validated = validateAndEnrichRecords([recordData, ...records]);
+      const validated = validateAndEnrichRecords([finalRecordData, ...records]);
       setRecords(validated);
       savedRecord = validated[0];
       showToast('success', `Jadwal baru untuk ${savedRecord.nama} berhasil ditambahkan.`);
@@ -351,7 +398,7 @@ export default function App() {
   };
 
   // Bulk Delete
-  const handleConfirmBulkDelete = () => {
+  const handleConfirmBulkDelete = async () => {
     if (!bulkIdsToDelete || bulkIdsToDelete.length === 0) return;
     const count = bulkIdsToDelete.length;
     const idSet = new Set(bulkIdsToDelete);
@@ -359,142 +406,122 @@ export default function App() {
 
     const remaining = records.filter(r => !idSet.has(r.id));
     setRecords(validateAndEnrichRecords(remaining));
-    showToast('success', `${count} baris jadwal berhasil dihapus.`);
+    showToast('success', `${count} jadwal training terpilih berhasil dihapus.`);
 
     if (supabaseTableExists) {
-      bulkIdsToDelete.forEach(id => {
-        deleteRecordFromSupabase(id).catch(e => console.warn(e));
-      });
+      for (const id of Array.from(idSet)) {
+        try {
+          await deleteRecordFromSupabase(id);
+        } catch {}
+      }
     }
   };
 
   // Clear All Data
   const handleConfirmClearAll = async () => {
     setIsClearAllModalOpen(false);
-    const countBefore = records.length;
+    
+    if (!isPusat) {
+      // Branch admin clears only their branch data
+      const remaining = records.filter(r => (r.cabang || '').toUpperCase() !== userCabang.toUpperCase());
+      setRecords(validateAndEnrichRecords(remaining));
+      showToast('success', `Seluruh data jadwal Cabang ${userCabang} berhasil dibersihkan.`);
+      return;
+    }
+
     setRecords([]);
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
 
-    // Call Supabase delete
-    let cloudMsg = '';
-    if (supabaseTableExists) {
-      const res = await deleteAllRecordsFromSupabase();
-      if (res.success) {
-        cloudMsg = ' dan database Supabase berhasil dikosongkan.';
-      } else {
-        cloudMsg = `. Supabase error: ${res.error}`;
-      }
-    }
-
-    showToast('success', `Seluruh data (${countBefore} baris) berhasil dihapus dari sistem${cloudMsg}`);
-  };
-
-  const handleQuickReschedule = async (recordId: string, newDate: string) => {
-    const updated = records.map(r => r.id === recordId ? { ...r, tanggalAwal: newDate } : r);
-    const validated = validateAndEnrichRecords(updated);
-    setRecords(validated);
-
-    const changed = validated.find(r => r.id === recordId);
-    if (supabaseTableExists && changed) {
-      saveRecordToSupabase(changed).catch(e => console.warn(e));
-    }
-    showToast('success', `Tanggal training berhasil diubah menjadi ${newDate}.`);
-  };
-
-  const handleImportRecords = async (newRecords: TrainingRecord[]) => {
-    if (!newRecords || newRecords.length === 0) return;
-
-    // 1. Ensure incoming records are correctly mapped to their designated sheet by training type
-    const validatedIncoming = newRecords.map(r => {
-      const correctSheet = mapTrainingToSheetCode(r.jenisTraining) || r.sheetCode || 'SBM';
-      return {
-        ...r,
-        sheetCode: correctSheet,
-      };
-    });
-
-    // 2. Merge with existing records without deleting or losing previous data
-    const existingMap = new Map<string, TrainingRecord>();
-    const getUniqueKey = (r: TrainingRecord) => {
-      const nik = (r.nik || '').trim();
-      const tgl = (r.tanggalAwal || '').trim();
-      const training = (r.jenisTraining || '').trim().toUpperCase();
-      if (nik && tgl && training) {
-        return `${nik}___${tgl}___${training}`;
-      }
-      return r.id;
-    };
-
-    // Index existing records
-    records.forEach(r => {
-      existingMap.set(getUniqueKey(r), r);
-    });
-
-    let addedCount = 0;
-    let updatedCount = 0;
-
-    // Append new records or update existing identical entries
-    validatedIncoming.forEach(inc => {
-      const key = getUniqueKey(inc);
-      if (existingMap.has(key)) {
-        const prev = existingMap.get(key)!;
-        existingMap.set(key, { ...prev, ...inc, id: prev.id });
-        updatedCount++;
-      } else {
-        existingMap.set(key, inc);
-        addedCount++;
-      }
-    });
-
-    const mergedList = Array.from(existingMap.values());
-    const enriched = validateAndEnrichRecords(mergedList);
-    setRecords(enriched);
-
-    // Track which sheets received newly uploaded records
-    const sheetCounts = new Map<string, number>();
-    validatedIncoming.forEach(r => {
-      const sc = r.sheetCode || 'SBM';
-      sheetCounts.set(sc, (sheetCounts.get(sc) || 0) + 1);
-    });
-
-    // If incoming records are mostly for a specific sheet, switch active tab to that sheet
-    const topSheet = Array.from(sheetCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
-    if (topSheet) {
-      setSelectedSheet(topSheet);
-      setActiveTab('jadwal');
-    }
-
-    const totalCount = enriched.length;
-    showToast(
-      'success',
-      `Berhasil mengunggah ${validatedIncoming.length} jadwal (${addedCount} data baru ditambahkan ke sheet tujuan, ${updatedCount} data diperbarui). Data lama tetap tersimpan (Total sekarang: ${totalCount} jadwal).`
-    );
-
-    // Sync to Supabase in background if table exists
     if (supabaseTableExists) {
       try {
-        await syncAllRecordsToSupabase(enriched);
-      } catch (e) {
-        console.warn('Background Supabase batch sync skipped:', e);
+        await deleteAllRecordsFromSupabase();
+        showToast('success', 'Seluruh data jadwal di aplikasi dan database Supabase Cloud telah dikosongkan.');
+      } catch (err: any) {
+        showToast('error', `Gagal mengosongkan Supabase: ${err.message}`);
+      }
+    } else {
+      showToast('success', 'Seluruh data jadwal berhasil dibersihkan.');
+    }
+  };
+
+  // Quick Reschedule handler from clash detector
+  const handleQuickReschedule = async (recordId: string, newDateIso: string) => {
+    const target = records.find(r => r.id === recordId);
+    if (!target) return;
+
+    const parts = newDateIso.split('-').map(Number);
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const newFormattedDate = `${String(parts[2]).padStart(2, '0')} ${months[parts[1] - 1]} ${parts[0]}`;
+
+    const updatedList = records.map(r => r.id === recordId ? { ...r, tanggalAwal: newFormattedDate } : r);
+    const validated = validateAndEnrichRecords(updatedList);
+    setRecords(validated);
+
+    const updatedRecord = validated.find(r => r.id === recordId);
+    if (updatedRecord && supabaseTableExists) {
+      try {
+        await saveRecordToSupabase(updatedRecord);
+      } catch {}
+    }
+    showToast('success', `Jadwal ${target.nama} berhasil dijadwalkan ulang ke ${newFormattedDate}.`);
+  };
+
+  // Import Records
+  const handleImportRecords = async (newRecords: TrainingRecord[]) => {
+    // If branch admin, tag all imported records to their branch
+    const tagged = newRecords.map(r => ({
+      ...r,
+      cabang: !isPusat ? userCabang : (r.cabang || 'SBY'),
+    }));
+
+    const merged = [...tagged, ...records.filter(r => !tagged.some(nr => nr.id === r.id))];
+    const validated = validateAndEnrichRecords(merged);
+    setRecords(validated);
+    showToast('success', `Berhasil mengimpor ${newRecords.length} data jadwal baru.`);
+
+    if (supabaseTableExists) {
+      try {
+        await syncAllRecordsToSupabase(validated);
+        showToast('success', `${newRecords.length} data jadwal baru berhasil disinkronkan ke Supabase Cloud.`);
+      } catch (e: any) {
+        console.warn('Supabase sync after import error:', e);
       }
     }
   };
 
-  const handleResetToDefault = () => {
-    const defaultData = loadDefaultRecords();
-    setRecords(defaultData);
-    localStorage.removeItem(STORAGE_KEY);
-    showToast('info', 'Data berhasil direset ke dataset awal.');
+  // Reset to Full Dataset
+  const handleResetToDefault = async () => {
+    const initial = loadDefaultRecords();
+    const validated = validateAndEnrichRecords(initial);
+    setRecords(validated);
+    showToast('success', `Berhasil memuat ulang ${validated.length} data jadwal standar.`);
+
+    if (supabaseTableExists) {
+      try {
+        await syncAllRecordsToSupabase(validated);
+      } catch (e) {}
+    }
   };
 
   const handleSelectStore = (storeCode: string) => {
     setActiveTab('jadwal');
     setSelectedSheet('MASTER');
-    setStatusFilter('ALL');
   };
 
+  // ==========================================
+  // GATEWAY: SHOW LOGIN SCREEN FIRST IF NOT LOGGED IN
+  // ==========================================
+  if (!currentUser) {
+    return <LoginScreen onLogin={handleLogin} users={users} />;
+  }
+
+  // ==========================================
+  // MAIN DASHBOARD (UNLOCKED AFTER LOGIN)
+  // ==========================================
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-slate-100/90 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -528,6 +555,9 @@ export default function App() {
         isCloudSyncing={isCloudSyncing}
         theme={theme}
         onToggleTheme={toggleTheme}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        onOpenUserManagement={() => setIsUserManagementModalOpen(true)}
       />
 
       {/* Supabase Notice Banner */}
@@ -574,26 +604,34 @@ export default function App() {
                   </h2>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                  Standar Operasional Indomaret: Deteksi otomatis bentrok personil NIK, pencegahan double toko, dan sinkronisasi sheet terpadu.
+                  {isPusat ? (
+                    <span>Akses Super Admin: Menampilkan seluruh jadwal cabang nasional. Gunakan menu <strong>Tambah/Kelola User</strong> di header untuk mendaftarkan admin cabang baru.</span>
+                  ) : (
+                    <span>Akses Terisolasi: Anda mengelola data khusus <strong>Cabang {userCabang}</strong>. Data cabang lain terlindungi dan tidak ditampilkan.</span>
+                  )}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-end">
+              {/* User badge */}
               <div className="text-right hidden sm:block">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">Tema Aktif:</span>
-                <span className={`text-xs font-bold inline-flex items-center gap-1 ${theme === 'dark' ? 'text-amber-400' : 'text-[#005BAC]'}`}>
-                  {theme === 'dark' ? '🌙 Mode Gelap' : '☀️ Mode Terang'}
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">Pengguna Aktif:</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center justify-end gap-1">
+                  {isPusat ? <Shield className="w-3.5 h-3.5 text-purple-600" /> : <Building2 className="w-3.5 h-3.5 text-[#005BAC]" />}
+                  <span>{currentUser?.nama}</span>
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-amber-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-2xs"
-                title="Beralih antara Mode Terang dan Mode Gelap"
-              >
-                Ganti Tema
-              </button>
+              {isPusat && (
+                <button
+                  type="button"
+                  onClick={() => setIsUserManagementModalOpen(true)}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/70 text-[#005BAC] dark:text-blue-300 hover:bg-blue-100 transition-colors shadow-2xs"
+                  title="Daftarkan user admin cabang baru"
+                >
+                  + Tambah User Cabang
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -611,7 +649,7 @@ export default function App() {
         {/* Dynamic Tab Panes */}
         {activeTab === 'jadwal' && (
           <ScheduleTable
-            records={records}
+            records={visibleRecords}
             onEdit={(record) => { setRecordToEdit(record); setIsAddModalOpen(true); }}
             onRequestDelete={(record) => setRecordToDelete(record)}
             onRequestBulkDelete={(ids) => setBulkIdsToDelete(ids)}
@@ -627,38 +665,34 @@ export default function App() {
             onOpenImportExport={() => setIsImportExportOpen(true)}
             onSyncCloud={handleManualCloudSync}
             isCloudSyncing={isCloudSyncing}
-          />
-        )}
-
-        {activeTab === 'bentrok' && (
-          <ClashDetectorPanel
-            storeClashes={storeClashes}
-            nikClashes={nikClashes}
-            allRecords={records}
-            onEditRecord={(record) => { setRecordToEdit(record); setIsAddModalOpen(true); }}
-            onQuickReschedule={handleQuickReschedule}
-          />
-        )}
-
-        {activeTab === 'kalender' && (
-          <CalendarView
-            records={records}
-            onSelectStore={handleSelectStore}
-            onEditRecord={(record) => { setRecordToEdit(record); setIsAddModalOpen(true); }}
+            currentUser={currentUser}
           />
         )}
 
         {activeTab === 'rekap' && (
           <BranchSummaryPanel
-            records={records}
+            records={visibleRecords}
             metrics={metrics}
-            onFilterCabang={(cabang) => {
-              setActiveTab('jadwal');
+            sheetList={sheetList}
+            onFilterCabang={() => {
               setSelectedSheet('MASTER');
+              setStatusFilter('ALL');
+              setActiveTab('jadwal');
             }}
-            onFilterTraining={(training) => {
+            onFilterTraining={(targetSheetCode, trainingName) => {
+              let matchedCode = targetSheetCode;
+              if (!sheetList.some(s => s.code === matchedCode)) {
+                const found = sheetList.find(s => 
+                  s.code.toLowerCase() === matchedCode.toLowerCase() ||
+                  s.name.toLowerCase().includes(trainingName.toLowerCase()) ||
+                  trainingName.toLowerCase().includes(s.code.toLowerCase())
+                );
+                if (found) matchedCode = found.code;
+              }
+              setSelectedSheet(matchedCode || 'MASTER');
+              setStatusFilter('ALL');
               setActiveTab('jadwal');
-              setSelectedSheet('MASTER');
+              showToast('info', `Membuka data Sheet ${matchedCode} (${trainingName})`);
             }}
           />
         )}
@@ -673,6 +707,7 @@ export default function App() {
         existingRecords={records}
         defaultSheetCode={selectedSheet}
         sheetList={sheetList}
+        currentUser={currentUser}
       />
 
       <AddSheetModal
@@ -686,7 +721,7 @@ export default function App() {
       <ImportExportModal
         isOpen={isImportExportOpen}
         onClose={() => setIsImportExportOpen(false)}
-        records={records}
+        records={visibleRecords}
         onImportRecords={handleImportRecords}
         onResetToDefault={handleResetToDefault}
       />
@@ -699,6 +734,17 @@ export default function App() {
           setRecords(cloudRecords);
           setSupabaseTableExists(true);
         }}
+      />
+
+      {/* User Management Modal for Admin Pusat */}
+      <UserManagementModal
+        isOpen={isUserManagementModalOpen}
+        onClose={() => setIsUserManagementModalOpen(false)}
+        users={users}
+        onAddUser={handleAddUser}
+        onDeleteUser={handleDeleteUser}
+        currentUser={currentUser}
+        availableBranches={availableBranches}
       />
 
       {/* Custom Confirmation Modals for Reliable Deletion (No window.confirm!) */}
@@ -724,8 +770,11 @@ export default function App() {
 
       <ConfirmModal
         isOpen={isClearAllModalOpen}
-        title="⚠️ Hapus Seluruh Data Jadwal & Supabase"
-        message={`PERINGATAN: Tindakan ini akan mengosongkan seluruh ${records.length} data jadwal di web aplikasi dan secara otomatis MENGHAPUS SEMUA DATA yang ada di dalam tabel Supabase (mmrjblorrtfjmiqhodcl.supabase.co).\n\nApakah Anda yakin ingin mengosongkan seluruh data?`}
+        title={isPusat ? '⚠️ Hapus Seluruh Data Jadwal & Supabase' : `⚠️ Hapus Seluruh Jadwal Cabang ${userCabang}`}
+        message={isPusat 
+          ? `PERINGATAN ADMIN PUSAT: Tindakan ini akan mengosongkan seluruh ${records.length} data jadwal di aplikasi dan database Supabase (mmrjblorrtfjmiqhodcl.supabase.co).\n\nApakah Anda yakin ingin mengosongkan seluruh data?`
+          : `PERINGATAN: Tindakan ini akan mengosongkan ${visibleRecords.length} data jadwal khusus Cabang ${userCabang}.\n\nData cabang lain tidak akan terhapus.`
+        }
         confirmLabel="Ya, Hapus Semua Data"
         isDestructive={true}
         onConfirm={handleConfirmClearAll}
@@ -735,7 +784,7 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-4 mt-auto transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span>Sistem Validasi &amp; Kroscek Sheet Training Toko</span>
             <span>·</span>
             <button
@@ -747,7 +796,7 @@ export default function App() {
             </button>
           </div>
           <div className="font-mono text-[11px] text-slate-400 dark:text-slate-500">
-            Total {records.length} Data Tersinkronisasi
+            {isPusat ? `Total ${records.length} Data Nasional` : `Total ${visibleRecords.length} Data Cabang ${userCabang}`}
           </div>
         </div>
       </footer>

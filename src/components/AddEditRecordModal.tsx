@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TrainingRecord, SHEET_LIST, SheetDefinition, RawTrainingInput } from '../types/training';
-import { X, AlertCircle, Calendar, ShieldCheck, ChevronDown, ChevronUp, UserX, Store } from 'lucide-react';
+import { AppUser } from '../types/auth';
+import { X, AlertCircle, Calendar, ShieldCheck, ChevronDown, ChevronUp, UserX, Store, Building2, Sparkles } from 'lucide-react';
 import { 
   generatePenggabunganKey, 
   dateToIso, 
@@ -32,6 +33,7 @@ interface AddEditRecordModalProps {
   existingRecords: TrainingRecord[];
   defaultSheetCode?: string;
   sheetList?: SheetDefinition[];
+  currentUser?: AppUser | null;
 }
 
 export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
@@ -42,7 +44,10 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
   existingRecords,
   defaultSheetCode,
   sheetList = SHEET_LIST,
+  currentUser,
 }) => {
+  const isCabangUser = currentUser?.role === 'CABANG' && Boolean(currentUser?.cabang);
+  const userCabang = currentUser?.cabang || 'SBY';
   // Core Fields
   const [sheetCode, setSheetCode] = useState<string>('SBM');
   const [tanggalIso, setTanggalIso] = useState<string>('2026-10-12');
@@ -114,13 +119,13 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
       setAs('-');
       setAm('-');
       setBatch('Batch 1');
-      setCabang('SBY');
+      setCabang(isCabangUser ? userCabang : 'SBY');
       setKeterangan('OFFLINE CLASS');
       setH1(''); setH2(''); setH3(''); setH4(''); setH5('');
       setH6(''); setH7(''); setH8(''); setH9(''); setH10('');
       setShowMultiDay(false);
     }
-  }, [recordToEdit, defaultSheetCode, isOpen]);
+  }, [recordToEdit, defaultSheetCode, isOpen, isCabangUser, userCabang]);
 
   // Selected training sheet label
   const selectedSheetMeta = (sheetList && sheetList.find(s => s.code === sheetCode)) || (sheetList && sheetList[0]) || SHEET_LIST[0];
@@ -479,17 +484,24 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 CABANG *
               </label>
-              <select
-                value={cabang}
-                onChange={e => setCabang(e.target.value)}
-                className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                <option value="SBY">SBY (Surabaya)</option>
-                <option value="JAP">JAP (Jayapura)</option>
-                <option value="MNK">MNK (Manokwari)</option>
-                <option value="SON">SON (Sorong)</option>
-                <option value="MRK">MRK (Merauke)</option>
-              </select>
+              {isCabangUser ? (
+                <div className="px-3 py-1.5 text-xs border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 font-bold rounded-lg flex items-center gap-1.5 shadow-2xs">
+                  <Building2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>Cabang {userCabang} (Terkunci)</span>
+                </div>
+              ) : (
+                <select
+                  value={cabang}
+                  onChange={e => setCabang(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#005BAC] focus:outline-hidden bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
+                >
+                  <option value="SBY">SBY (Surabaya)</option>
+                  <option value="JAP">JAP (Jayapura)</option>
+                  <option value="MNK">MNK (Manokwari)</option>
+                  <option value="SON">SON (Sorong)</option>
+                  <option value="MRK">MRK (Merauke)</option>
+                </select>
+              )}
             </div>
 
             <div>
