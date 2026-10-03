@@ -20,6 +20,7 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { AddSheetModal } from './components/AddSheetModal';
 import { LoginScreen } from './components/LoginScreen';
 import { UserManagementModal } from './components/UserManagementModal';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { 
   getLocalUsers, 
   saveLocalUsers, 
@@ -49,6 +50,7 @@ export default function App() {
   const [currentUser, setCurrentUserState] = useState<AppUser | null>(() => getCurrentUser());
   const [users, setUsers] = useState<AppUser[]>(() => getLocalUsers());
   const [isUserManagementModalOpen, setIsUserManagementModalOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   // Training Records State
   const [records, setRecords] = useState<TrainingRecord[]>(() => {
@@ -317,6 +319,23 @@ export default function App() {
     showToast('success', `Akun ${username} berhasil dihapus.`);
   };
 
+  const handleUpdatePassword = async (username: string, newPassword: string) => {
+    const nextUsers = users.map(u => u.username === username ? { ...u, password: newPassword } : u);
+    setUsers(nextUsers);
+    saveLocalUsers(nextUsers);
+
+    if (currentUser && currentUser.username === username) {
+      const nextCurrent = { ...currentUser, password: newPassword };
+      setCurrentUserState(nextCurrent);
+      setCurrentUser(nextCurrent);
+    }
+
+    const target = nextUsers.find(u => u.username === username);
+    if (target) {
+      await syncUserToSupabase(target);
+    }
+  };
+
   // ==========================================
   // DATA ISOLATION (Role-Based Access Control)
   // ==========================================
@@ -547,7 +566,6 @@ export default function App() {
         metrics={metrics}
         onOpenAddModal={() => { setRecordToEdit(null); setIsAddModalOpen(true); }}
         onOpenImportExport={() => setIsImportExportOpen(true)}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onResetData={handleResetToDefault}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -558,30 +576,11 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenUserManagement={() => setIsUserManagementModalOpen(true)}
+        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
       />
 
-      {/* Supabase Notice Banner */}
-      {!supabaseTableExists && (
-        <div className="bg-emerald-950 text-emerald-100 px-4 py-2 text-xs border-b border-emerald-800">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>
-                Koneksi Supabase permanen aktif (<strong>mmrjblorrtfjmiqhodcl.supabase.co</strong>). Jalankan kode SQL 19 Sheet di Supabase SQL Editor untuk aktivasi cloud sync.
-              </span>
-            </div>
-            <button
-              onClick={() => setIsSupabaseModalOpen(true)}
-              className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold px-3 py-1 rounded transition-colors whitespace-nowrap shadow-xs"
-            >
-              Lihat Kode SQL Editor 19 Sheet
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Indomaret Tri-Color Brand Status Hero Bar */}
         <div className="mb-6 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-xs transition-colors">
           <div className="h-1.5 w-full indomaret-stripe" />
@@ -605,7 +604,7 @@ export default function App() {
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
                   {isPusat ? (
-                    <span>Akses Super Admin: Menampilkan seluruh jadwal cabang nasional. Gunakan menu <strong>Tambah/Kelola User</strong> di header untuk mendaftarkan admin cabang baru.</span>
+                    <span>Akses Admin Utama: Menampilkan seluruh jadwal cabang nasional. Gunakan menu <strong>Tambah/Kelola User</strong> di header untuk mendaftarkan admin cabang baru.</span>
                   ) : (
                     <span>Akses Terisolasi: Anda mengelola data khusus <strong>Cabang {userCabang}</strong>. Data cabang lain terlindungi dan tidak ditampilkan.</span>
                   )}
@@ -743,8 +742,17 @@ export default function App() {
         users={users}
         onAddUser={handleAddUser}
         onDeleteUser={handleDeleteUser}
+        onUpdatePassword={handleUpdatePassword}
         currentUser={currentUser}
         availableBranches={availableBranches}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        currentUser={currentUser}
+        onUpdatePassword={handleUpdatePassword}
       />
 
       {/* Custom Confirmation Modals for Reliable Deletion (No window.confirm!) */}
@@ -772,7 +780,7 @@ export default function App() {
         isOpen={isClearAllModalOpen}
         title={isPusat ? '⚠️ Hapus Seluruh Data Jadwal & Supabase' : `⚠️ Hapus Seluruh Jadwal Cabang ${userCabang}`}
         message={isPusat 
-          ? `PERINGATAN ADMIN PUSAT: Tindakan ini akan mengosongkan seluruh ${records.length} data jadwal di aplikasi dan database Supabase (mmrjblorrtfjmiqhodcl.supabase.co).\n\nApakah Anda yakin ingin mengosongkan seluruh data?`
+          ? `PERINGATAN ADMIN UTAMA: Tindakan ini akan mengosongkan seluruh ${records.length} data jadwal di aplikasi dan database Supabase.\n\nApakah Anda yakin ingin mengosongkan seluruh data?`
           : `PERINGATAN: Tindakan ini akan mengosongkan ${visibleRecords.length} data jadwal khusus Cabang ${userCabang}.\n\nData cabang lain tidak akan terhapus.`
         }
         confirmLabel="Ya, Hapus Semua Data"
@@ -783,17 +791,14 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-4 mt-auto transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
           <div className="flex flex-wrap items-center gap-2">
             <span>Sistem Validasi &amp; Kroscek Sheet Training Toko</span>
             <span>·</span>
-            <button
-              onClick={() => setIsSupabaseModalOpen(true)}
-              className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300 font-semibold hover:underline flex items-center gap-1"
-            >
+            <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
               <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Supabase Cloud Sync</span>
-            </button>
+              <span>Supabase Cloud Sync Aktif</span>
+            </span>
           </div>
           <div className="font-mono text-[11px] text-slate-400 dark:text-slate-500">
             {isPusat ? `Total ${records.length} Data Nasional` : `Total ${visibleRecords.length} Data Cabang ${userCabang}`}

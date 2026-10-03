@@ -38,7 +38,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setTimeout(() => {
       const found = users.find(u => u.username.toLowerCase() === cleanUsername);
       if (!found) {
-        setErrorMsg('Username tidak terdaftar. Hubungi Admin Pusat jika belum memiliki akun.');
+        setErrorMsg('Username tidak terdaftar. Hubungi Admin Utama jika belum memiliki akun.');
         setIsLoading(false);
         return;
       }
@@ -146,8 +146,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <Shield className="w-3.5 h-3.5 text-[#005BAC] dark:text-blue-400" />
               <span>Ketentuan Akses:</span>
             </div>
-            <p>• <strong>Admin Pusat</strong>: Mengelola seluruh cabang dan mendaftarkan user cabang baru.</p>
-            <p>• <strong>Admin Cabang</strong>: Login hanya dapat dilakukan setelah user didaftarkan oleh Admin Pusat.</p>
+            <p>• <strong>Admin Utama</strong> : Mendaftarkan user cabang baru.</p>
+            <p>• <strong>Admin Cabang</strong>: Login hanya dapat dilakukan setelah user cabang didaftarkan oleh Admin Utama.</p>
           </div>
         </div>
 

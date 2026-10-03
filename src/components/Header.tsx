@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Upload, Database, RefreshCw, Sun, Moon, Users, Shield, Building2, LogOut } from 'lucide-react';
+import { Plus, Upload, RefreshCw, Sun, Moon, Users, Shield, Building2, LogOut, KeyRound } from 'lucide-react';
 import { DashboardMetrics } from '../types/training';
 import { AppUser } from '../types/auth';
 
@@ -7,7 +7,6 @@ interface HeaderProps {
   metrics: DashboardMetrics;
   onOpenAddModal: () => void;
   onOpenImportExport: () => void;
-  onOpenSupabaseModal: () => void;
   onResetData: () => void;
   activeTab: 'jadwal' | 'rekap';
   setActiveTab: (tab: 'jadwal' | 'rekap') => void;
@@ -18,13 +17,13 @@ interface HeaderProps {
   currentUser: AppUser | null;
   onLogout: () => void;
   onOpenUserManagement: () => void;
+  onOpenChangePassword: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   metrics,
   onOpenAddModal,
   onOpenImportExport,
-  onOpenSupabaseModal,
   onResetData,
   activeTab,
   setActiveTab,
@@ -35,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onLogout,
   onOpenUserManagement,
+  onOpenChangePassword,
 }) => {
   const isPusat = currentUser?.role === 'PUSAT';
 
@@ -43,10 +43,10 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Indomaret Authentic Tri-Color Stripe (Biru, Merah, Kuning) */}
       <div className="h-1.5 w-full indomaret-stripe" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
+      <div className="w-full max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-4">
           {/* Zone 1: Wordmark Brand with Indomaret Emblem */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="relative flex items-center justify-center p-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs overflow-hidden h-10 w-24 shrink-0">
               <img 
                 src="/indomaret.svg" 
@@ -59,23 +59,23 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="hidden sm:block">
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-extrabold text-slate-900 dark:text-slate-50 tracking-tight leading-tight">
+                <h1 className="text-base font-extrabold text-slate-900 dark:text-slate-50 tracking-tight leading-tight whitespace-nowrap">
                   Validasi Training Toko
                 </h1>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-normal whitespace-nowrap">
                 {isPusat 
-                  ? 'Akses Nasional (Admin Pusat - Semua Cabang)' 
+                  ? 'Akses Nasional (Admin Utama - Semua Cabang)' 
                   : `Akses Terisolasi: Admin Cabang ${currentUser?.cabang || 'SBY'}`}
               </p>
             </div>
           </div>
 
           {/* Zone 2: Navigation Tabs */}
-          <nav className="hidden lg:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+          <nav className="hidden md:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
             <button
               onClick={() => setActiveTab('jadwal')}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === 'jadwal'
                   ? 'bg-white dark:bg-slate-900 text-[#005BAC] dark:text-blue-400 shadow-xs border-b-2 border-[#005BAC]'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('rekap')}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 activeTab === 'rekap'
                   ? 'bg-white dark:bg-slate-900 text-[#005BAC] dark:text-blue-400 shadow-xs border-b-2 border-[#005BAC]'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -98,9 +98,9 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Zone 3: Actions, User Role Badge & Theme Toggle */}
           <div className="flex items-center gap-2">
             {/* User Account & Role Indicator */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <div
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold shadow-xs ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold shadow-xs whitespace-nowrap ${
                   isPusat
                     ? 'bg-purple-50 dark:bg-purple-950/70 border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200'
                     : 'bg-blue-50 dark:bg-blue-950/70 border-blue-200 dark:border-blue-800 text-[#005BAC] dark:text-blue-200'
@@ -112,25 +112,36 @@ export const Header: React.FC<HeaderProps> = ({
                   <Building2 className="w-3.5 h-3.5 text-[#005BAC] dark:text-blue-400" />
                 )}
                 <span className="hidden sm:inline font-bold">
-                  {isPusat ? 'Admin Pusat' : `Cabang ${currentUser?.cabang || 'SBY'}`}
+                  {isPusat ? 'Admin Utama' : `Cabang ${currentUser?.cabang || 'SBY'}`}
                 </span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal hidden md:inline">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal hidden lg:inline">
                   ({currentUser?.username})
                 </span>
               </div>
 
-              {/* Admin Pusat: Manage Users Button */}
+              {/* Admin Utama: Manage Users Button */}
               {isPusat && (
                 <button
                   type="button"
                   onClick={onOpenUserManagement}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-xs"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-xs whitespace-nowrap"
                   title="Tambah & kelola user cabang baru"
                 >
                   <Users className="w-3.5 h-3.5 text-[#005BAC] dark:text-blue-400" />
                   <span className="hidden xl:inline">Tambah/Kelola User</span>
                 </button>
               )}
+
+              {/* Change Password Button */}
+              <button
+                type="button"
+                onClick={onOpenChangePassword}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-xs whitespace-nowrap"
+                title="Ubah password akun Anda"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span className="hidden md:inline">Ganti Password</span>
+              </button>
 
               {/* Logout Button */}
               <button
@@ -163,23 +174,13 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* Supabase Cloud Button */}
-            <button
-              onClick={onOpenSupabaseModal}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-xs"
-              title="Buka status koneksi Supabase & SQL Editor"
-            >
-              <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Supabase</span>
-            </button>
-
             {/* Quick Cloud Sync Button */}
             {onSyncCloud && (
               <button
                 type="button"
                 onClick={onSyncCloud}
                 disabled={isCloudSyncing}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-[#005BAC] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-xs disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-[#005BAC] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-xs disabled:opacity-50 whitespace-nowrap"
                 title="Tarik & sinkronkan data terbaru dari database Supabase Cloud"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-[#005BAC] dark:text-blue-400 ${isCloudSyncing ? 'animate-spin' : ''}`} />
@@ -189,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={onOpenImportExport}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-xs whitespace-nowrap"
               title="Import file Excel / CSV atau Export"
             >
               <Upload className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
@@ -198,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={onOpenAddModal}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] rounded-lg transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] rounded-lg transition-colors shadow-sm whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Tambah Jadwal</span>
@@ -206,8 +207,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Mobile Navigation Tabs & Theme Bar */}
-        <div className="lg:hidden flex items-center justify-between py-2 border-t border-slate-200 dark:border-slate-800 gap-2">
+        {/* Mobile Navigation Tabs */}
+        <div className="md:hidden flex items-center justify-between py-2 border-t border-slate-200 dark:border-slate-800 gap-2">
           <div className="flex items-center gap-1 overflow-x-auto">
             <button
               onClick={() => setActiveTab('jadwal')}
@@ -242,6 +243,14 @@ export const Header: React.FC<HeaderProps> = ({
                 <Users className="w-3.5 h-3.5" />
               </button>
             )}
+            <button
+              type="button"
+              onClick={onOpenChangePassword}
+              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 text-xs"
+              title="Ganti Password"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+            </button>
             <button
               type="button"
               onClick={onLogout}

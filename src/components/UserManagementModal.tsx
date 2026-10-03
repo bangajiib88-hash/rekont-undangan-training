@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppUser, UserRole } from '../types/auth';
-import { Users, UserPlus, Trash2, Shield, Building2, Key, CheckCircle2, AlertCircle, X, ShieldAlert } from 'lucide-react';
+import { Users, UserPlus, Trash2, Shield, Building2, Key, CheckCircle2, AlertCircle, X, ShieldAlert, KeyRound, Check } from 'lucide-react';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface UserManagementModalProps {
   users: AppUser[];
   onAddUser: (user: AppUser) => Promise<void>;
   onDeleteUser: (username: string) => Promise<void>;
+  onUpdatePassword?: (username: string, newPassword: string) => Promise<void>;
   currentUser: AppUser | null;
   availableBranches?: string[];
 }
@@ -18,6 +19,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   users,
   onAddUser,
   onDeleteUser,
+  onUpdatePassword,
   currentUser,
   availableBranches = ['SBY', 'JAP', 'MNK', 'SON', 'MRK'],
 }) => {
@@ -30,6 +32,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [customCabang, setCustomCabang] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Quick Inline Password Reset State
+  const [editingPasswordUser, setEditingPasswordUser] = useState<string | null>(null);
+  const [inlineNewPassword, setInlineNewPassword] = useState('');
 
   if (!isOpen) return null;
 
@@ -108,6 +114,23 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       setMessage({ type: 'success', text: `Akun ${targetNama} (${targetUsername}) berhasil dihapus.` });
     } catch (err: any) {
       setMessage({ type: 'error', text: `Gagal menghapus user: ${err.message}` });
+    }
+  };
+
+  const handleSaveInlinePassword = async (targetUsername: string) => {
+    if (!inlineNewPassword.trim()) {
+      setMessage({ type: 'error', text: 'Password baru tidak boleh kosong.' });
+      return;
+    }
+    if (onUpdatePassword) {
+      try {
+        await onUpdatePassword(targetUsername, inlineNewPassword.trim());
+        setMessage({ type: 'success', text: `Password untuk user "${targetUsername}" berhasil diubah menjadi "${inlineNewPassword.trim()}".` });
+        setEditingPasswordUser(null);
+        setInlineNewPassword('');
+      } catch (e: any) {
+        setMessage({ type: 'error', text: `Gagal mengubah password: ${e.message}` });
+      }
     }
   };
 
@@ -269,7 +292,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] rounded-lg transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? 'Menyimpan...' : '+ Tambahkan User Cabang'}
                 </button>
@@ -284,7 +307,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 Daftar Pengguna Terdaftar ({users.length})
               </h4>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                User cabang yang terdaftar di sini dapat langsung melakukan login
+                Admin Pusat dapat mengubah password atau menghapus user cabang di bawah ini
               </span>
             </div>
 
@@ -299,13 +322,14 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                       <th className="py-2.5 px-3">Tingkat Akses (Role)</th>
                       <th className="py-2.5 px-3">Wilayah Cabang</th>
                       <th className="py-2.5 px-3">Password</th>
-                      {isSuperAdmin && <th className="py-2.5 px-3 text-center w-16">Aksi</th>}
+                      {isSuperAdmin && <th className="py-2.5 px-3 text-center w-24">Aksi</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {users.map((u, idx) => {
                       const isPusat = u.role === 'PUSAT';
                       const isCurrent = currentUser?.username === u.username;
+                      const isEditingThis = editingPasswordUser === u.username;
 
                       return (
                         <tr key={u.id || u.username} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
@@ -347,23 +371,65 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                               </span>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-slate-500 dark:text-slate-400 text-[11px]">
-                            {u.password || '123'}
+                          <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300 text-[11px]">
+                            {isEditingThis ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={inlineNewPassword}
+                                  onChange={e => setInlineNewPassword(e.target.value)}
+                                  placeholder="Password baru..."
+                                  className="px-2 py-1 text-xs border border-[#005BAC] rounded bg-white dark:bg-slate-800 font-mono w-28 focus:outline-hidden"
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveInlinePassword(u.username)}
+                                  className="p-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                                  title="Simpan password"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingPasswordUser(null); setInlineNewPassword(''); }}
+                                  className="p-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-slate-300"
+                                  title="Batal"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span>{u.password || '123'}</span>
+                            )}
                           </td>
                           {isSuperAdmin && (
                             <td className="py-2.5 px-3 text-center">
-                              {u.username !== 'adminpusat' && !isCurrent ? (
+                              <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => handleDelete(u.username, u.nama)}
-                                  className="p-1.5 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors"
-                                  title={`Hapus akun ${u.nama}`}
+                                  onClick={() => {
+                                    setEditingPasswordUser(u.username);
+                                    setInlineNewPassword(u.password || '123');
+                                  }}
+                                  className="p-1.5 rounded text-amber-600 hover:text-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/60 transition-colors"
+                                  title={`Ubah password akun ${u.nama}`}
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <KeyRound className="w-3.5 h-3.5" />
                                 </button>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 italic">Terkunci</span>
-                              )}
+                                {u.username !== 'adminpusat' && !isCurrent ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(u.username, u.nama)}
+                                    className="p-1.5 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors"
+                                    title={`Hapus akun ${u.nama}`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic px-1">Terkunci</span>
+                                )}
+                              </div>
                             </td>
                           )}
                         </tr>
