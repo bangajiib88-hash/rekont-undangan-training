@@ -105,14 +105,12 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
     }
   }, [recordToEdit, defaultSheetCode, isOpen]);
 
-  if (!isOpen) return null;
-
   // Selected training sheet label
-  const selectedSheetMeta = sheetList.find(s => s.code === sheetCode) || sheetList[0] || SHEET_LIST[0];
-  const jenisTraining = selectedSheetMeta.name;
+  const selectedSheetMeta = (sheetList && sheetList.find(s => s.code === sheetCode)) || (sheetList && sheetList[0]) || SHEET_LIST[0];
+  const jenisTraining = selectedSheetMeta?.name || 'TRAINING';
   const tanggalIndo = isoToDateIndo(tanggalIso);
 
-  // Live Clash Preview: Check if store or NIK will clash
+  // Live Clash Preview: Check if store or NIK will clash (Hooks must run before any return!)
   const clashPreview = useMemo(() => {
     if (!kodeToko || !tanggalIndo) return null;
 
@@ -134,6 +132,8 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
       nikClashes,
     };
   }, [kodeToko, tanggalIndo, nik, existingRecords, recordToEdit]);
+
+  const previewPenggabungan = generatePenggabunganKey(tanggalIndo, nik, jenisTraining);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +170,7 @@ export const AddEditRecordModal: React.FC<AddEditRecordModalProps> = ({
     onClose();
   };
 
-  const previewPenggabungan = generatePenggabunganKey(tanggalIndo, nik, jenisTraining);
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">

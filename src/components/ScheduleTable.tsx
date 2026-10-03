@@ -289,6 +289,19 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({
               </button>
             </div>
 
+            {/* Tombol Tambah Jadwal */}
+            {onOpenAddModal && (
+              <button
+                type="button"
+                onClick={onOpenAddModal}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#005BAC] hover:bg-[#004785] rounded-lg transition-colors shadow-xs"
+                title="Tambah jadwal training personil baru"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Jadwal</span>
+              </button>
+            )}
+
             {/* Tombol Hapus Semua Data */}
             <button
               type="button"
